@@ -149,7 +149,7 @@ class TestvCenter(vCenterBase):
 
         with self.assertRaises(FileNotFoundError):
             vc.get_vm_folder('/foo/bar', datacenter='someDC')
-            
+
 
 class TestvCenterProperties(vCenterBase):
 
@@ -246,6 +246,14 @@ class TestvCenterProperties(vCenterBase):
     def test_ovf_manager_property_ro(self):
         """vCenter - ``ovf_manager`` is a read-only property"""
         self._verify_read_only('ovf_manager')
+
+    def test_switches_property(self):
+        """vCenter - ``dv_switches`` returns a dictionary"""
+        self._verify_mapped_objects('dv_switches')
+
+    def test_switches_property_ro(self):
+        """vCenter - ``dv_switches`` is a read-only property"""
+        self._verify_read_only('dv_switches')
 
 
 if __name__ == '__main__':

@@ -224,6 +224,15 @@ class vCenter(object):
         return _map_object(self.get_by_type(vim.Network))
 
     @property
+    def dv_switches(self):
+        """The Distributed Virtual Switches configured. the dictionary returned
+        is a mapping of the switch name, and the usable object vim.DistributedVirtualSwitch.
+
+        :Returns: Dictionary
+        """
+        return _map_object(self.get_by_type(vim.DistributedVirtualSwitch))
+
+    @property
     def ovf_manager(self):
         """
         An object for working with OVFs in vCenter
