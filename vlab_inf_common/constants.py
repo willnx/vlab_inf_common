@@ -11,6 +11,7 @@ DEFINED = OrderedDict([
             ('VLAB_URL', environ.get('VLAB_URL', 'https://localhost')),
             ('INF_VCENTER_SERVER', environ.get('INF_VCENTER_SERVER', 'localhost')),
             ('INF_VCENTER_PORT', int(environ.get('INFO_VCENTER_PORT', 443))),
+            ('INF_VCENTER_CONSOLE_PORT', int(environ.get('INF_VCENTER_CONSOLE_PORT', 9443))),
             ('INF_VCENTER_USER', environ.get('INF_VCENTER_SERVER', 'tester')),
             ('INF_VCENTER_PASSWORD', environ.get('INF_VCENTER_PASSWORD', 'a')),
             ('INF_VCENTER_TOP_LVL_DIR', environ.get('INF_VCENTER_TOP_LVL_DIR', 'vlab')),
