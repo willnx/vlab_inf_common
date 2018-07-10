@@ -7,6 +7,7 @@ import time
 import textwrap
 
 import OpenSSL
+from pyVmomi import vim
 
 from vlab_inf_common.constants import const
 
@@ -41,7 +42,7 @@ def power(virtual_machine, state, timeout=600):
     elif state == 'off':
         task = virtual_machine.PowerOff()
     elif state == 'restart':
-        task = virtual_machine.ResetVM()
+        task = virtual_machine.ResetVM_Task()
 
     for _ in range(timeout):
         if task.info.completeTime:
@@ -120,3 +121,86 @@ def _get_vm_console_url(vcenter, virtual_machine):
                session,
                thumbprint)
     return textwrap.dedent(url).replace('\n', '')
+
+
+def run_command(vcenter, virtual_machine, command, user, password, arguments='', init_timeout=600, timeout=600):
+    """Execute a command within a supplied virtual machine
+
+    :Returns: vim.vm.guest.ProcessManager.ProcessInfo
+
+    :param vcenter: The vCenter object
+    :type vcenter: vlab_inf_common.vmware.vcenter.vCenter
+
+    :param virtual_machine: The pyVmomi Virtual machine object
+    :type virtual_machine: vim.VirtualMachine
+
+    :param command: The abolute path to the command you want to execute
+    :type command: String
+
+    :param arguments: Optionally supply arguments to your command
+    :type arguments: String
+
+    :param user: The username of the account that will execute the command
+    :type user: String
+
+    :param password: The password of the given user
+    :type password: String
+
+    :param init_timeout: How long to wait for VMware Tools to become available.
+                         Handy for running a command on a VM after booting it up.
+    :type init_timeout: Integer
+
+    :param timeout: How long to wait for the command to terminate
+    :type timeout: Integer
+    """
+    creds = vim.vm.guest.NamePasswordAuthentication(username=user, password=password)
+    process_mgr = vcenter.content.guestOperationsManager.processManager
+    program_spec = vim.vm.guest.ProcessManager.ProgramSpec(programPath=command, arguments=arguments)
+    for _ in range(init_timeout):
+        try:
+            pid = process_mgr.StartProgramInGuest(virtual_machine, creds, program_spec)
+        except vim.fault.GuestOperationsUnavailable:
+            # VMTools not yet available
+            time.sleep(1)
+            pass
+        else:
+            break
+    else:
+        raise RuntimeError('VMTools not available within {} seconds'.format(init_timeout))
+
+    info = get_process_info(vcenter, virtual_machine, user, password, pid)
+    for _ in range(timeout):
+        if not info.endTime:
+            time.sleep(1)
+            info = get_process_info(vcenter, virtual_machine, user, password, pid)
+        else:
+            break
+    else:
+        raise RuntimeError('Command {} {} took more than {} seconds'.format(command, arguments, timeout))
+    return info
+
+
+def get_process_info(vcenter, virtual_machine, user, password, pid):
+    """Lookup information about a running process within a virtual machine.
+
+    :Returns: vim.vm.guest.ProcessManager.ProcessInfo
+
+    :param vcenter: The vCenter object
+    :type vcenter: vlab_inf_common.vmware.vcenter.vCenter
+
+    :param virtual_machine: The pyVmomi Virtual machine object
+    :type virtual_machine: vim.VirtualMachine
+
+    :param user: The username of the account to authenticate with inside the VM
+    :type user: String
+
+    :param password: The password of the given user
+    :type password: String
+
+    :param pid: The process ID to lookup
+    :type pid: Integer
+    """
+    creds = vim.vm.guest.NamePasswordAuthentication(username='root', password='a')
+    return vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest(vm=virtual_machine,
+                                                                                      auth=creds,
+                                                                                      pids=[pid])[0]

@@ -454,7 +454,7 @@ class TestOva(unittest.TestCase):
     @patch.object(ova, 'tarfile')
     @patch.object(ova.Ova, '_create_file_handle')
     def test_timer_exception(self, fake_create_file_handle, fake_tarfile, fake_sys):
-        """Ova - ``_timer`` avorts the upload if there's any Exceptions"""
+        """Ova - ``_timer`` aborts the upload if there's any Exceptions"""
         fake_tar = MagicMock()
         fake_tar.getnames.return_value = ['some.vmdk', 'the.ovf']
         fake_tar.extractfile.return_value.read.return_value.decode.return_value = 'woot'
@@ -467,6 +467,23 @@ class TestOva(unittest.TestCase):
 
         self.assertTrue(fake_lease.Abort.called)
         self.assertTrue(fake_sys.stderr.flush.called)
+
+    @patch.object(ova.Ova, '_chime_progress')
+    @patch.object(ova, 'tarfile')
+    @patch.object(ova.Ova, '_create_file_handle')
+    def test_timer_race(self, fake_create_file_handle, fake_tarfile, fake_chime_progress):
+        """Ova - ``_timer`` handles race between upload completion and chiming progress"""
+        fake_tar = MagicMock()
+        fake_tar.getnames.return_value = ['some.vmdk', 'the.ovf']
+        fake_tar.extractfile.return_value.read.return_value.decode.return_value = 'woot'
+        fake_tarfile.open.return_value = fake_tar
+        fake_lease = MagicMock()
+        fake_lease.Progress.side_effect = [vmodl.fault.ManagedObjectNotFound()]
+        my_ova = ova.Ova('/some/file')
+
+        my_ova._timer(fake_lease)
+
+        self.assertFalse(fake_lease.Abort.called)
 
 
 class TestFileHandle(unittest.TestCase):
