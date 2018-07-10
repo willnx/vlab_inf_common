@@ -184,6 +184,9 @@ class Ova(object):
             if lease.state not in ('done', 'error'):
                 self._chime_progress(lease)
             self._prog = prog
+        except vmodl.fault.ManagedObjectNotFound:
+            # race between upload completing, and Timer chiming
+            pass
         except Exception:
             # Don't start a new chimer, write the traceback to the console,
             # and kill the deploy. Might take a few moments for the deploy
