@@ -49,7 +49,7 @@ class TestVirtualMachine(unittest.TestCase):
     @patch.object(virtual_machine, '_get_vm_ips')
     @patch.object(virtual_machine, '_get_vm_console_url')
     def test_get_info(self, fake_get_vm_console_url, fake_get_vm_ips):
-        """TODO"""
+        """``virtual_machine`` - get_info returns the expected data"""
         fake_get_vm_ips.return_value = ['192.168.1.1']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
@@ -169,7 +169,7 @@ class TestVirtualMachine(unittest.TestCase):
 
         virtual_machine.get_process_info(vcenter, the_vm, 'alice', 'IloveDogs', 1234)
 
-        vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest.assert_called()
+        self.assertTrue(vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest.called)
 
 
 if __name__ == '__main__':
