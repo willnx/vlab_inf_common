@@ -5,6 +5,8 @@ A unit tests for the virtual_machine functions
 import unittest
 from unittest.mock import MagicMock, patch
 
+from pyVmomi import vim
+
 from vlab_inf_common.vmware import virtual_machine
 
 
@@ -113,13 +115,61 @@ class TestVirtualMachine(unittest.TestCase):
         """``virtual_machine`` - power returns false if the task timesout"""
         vm = MagicMock()
         vm.runtime.powerState = 'off'
-        vm.ResetVM.return_value.info.completeTime = None
+        vm.ResetVM_Task.return_value.info.completeTime = None
 
         result = virtual_machine.power(vm, state='restart')
         expected = False
 
         self.assertEqual(result, expected)
         self.assertTrue(fake_sleep.called)
+
+    @patch.object(virtual_machine, 'get_process_info')
+    def test_output(self, fake_get_process_info):
+        """``virtual_machine`` - run_command returns the output of get_process_info"""
+        fake_info = MagicMock()
+        fake_get_process_info.return_value = fake_info
+        vcenter = MagicMock()
+        the_vm = MagicMock()
+
+        output = virtual_machine.run_command(vcenter, the_vm, '/bin/ls', 'bob', 'iLoveCats')
+
+        self.assertTrue(output is fake_info)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'get_process_info')
+    def test_init_timeout(self, fake_get_process_info, fake_sleep):
+        """``virtual_machine`` - run_command raises RuntimeError if VMtools isn't available before the timeout"""
+        """``virtual_machine`` - run_command returns the output of get_process_info"""
+        fake_info = MagicMock()
+        fake_get_process_info.return_value = fake_info
+        vcenter = MagicMock()
+        vcenter.content.guestOperationsManager.processManager.StartProgramInGuest.side_effect = [vim.fault.GuestOperationsUnavailable(), vim.fault.GuestOperationsUnavailable()]
+        the_vm = MagicMock()
+
+        with self.assertRaises(RuntimeError):
+            output = virtual_machine.run_command(vcenter, the_vm, '/bin/ls', 'bob', 'iLoveCats', init_timeout=1)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'get_process_info')
+    def test_command_timeout(self, fake_get_process_info, fake_sleep):
+        """``virtual_machine`` - run_command raises RuntimeError if the command doesn't complete in time"""
+        fake_info = MagicMock()
+        fake_info.endTime = None
+        fake_get_process_info.return_value = fake_info
+        vcenter = MagicMock()
+        the_vm = MagicMock()
+
+        with self.assertRaises(RuntimeError):
+            output = virtual_machine.run_command(vcenter, the_vm, '/bin/ls', 'bob', 'iLoveCats', timeout=1)
+
+    def test_process_info(self):
+        """``virtual_machine`` - get_process_info calls ListProcessesInGuest"""
+        vcenter = MagicMock()
+        the_vm = MagicMock()
+
+        virtual_machine.get_process_info(vcenter, the_vm, 'alice', 'IloveDogs', 1234)
+
+        vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest.assert_called()
 
 
 if __name__ == '__main__':
