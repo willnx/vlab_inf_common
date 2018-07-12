@@ -29,7 +29,7 @@ class TestVirtualMachine(unittest.TestCase):
         vm._moId = 'test-vm-id'
         vm.name = 'test-vm-name'
 
-        console_url = virtual_machine._get_vm_console_url(vcenter=vcenter, virtual_machine=vm)
+        console_url = virtual_machine._get_vm_console_url(vcenter=vcenter, the_vm=vm)
         expected_url = 'https://localhost:9443/vsphere-client/webconsole.html?vmId=test-vm-id&vmName=test-vm-name&serverGuid=Test-UUID&locale=en_US&host=localhost:443&sessionTicket=test-session&thumbprint=test-thumbprint'
 
         self.assertEqual(console_url, expected_url)
@@ -54,10 +54,11 @@ class TestVirtualMachine(unittest.TestCase):
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
         vm.runtime.powerState = 'on'
+        vm.config.annotation = 'some note'
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm)
-        expected_info = {'console': 'https://test-vm-url', 'ips': ['192.168.1.1'], 'state': 'on'}
+        expected_info = {'note': 'some note', 'console': 'https://test-vm-url', 'ips': ['192.168.1.1'], 'state': 'on'}
 
         self.assertEqual(info, expected_info)
 
@@ -82,6 +83,7 @@ class TestVirtualMachine(unittest.TestCase):
         vm = MagicMock()
         vm.runtime.powerState = 'off'
         vm.PowerOn.return_value.info.completeTime = 1234
+        vm.PowerOn.return_value.info.error = None
 
         result = virtual_machine.power(vm, state='on')
         expected = True
@@ -93,6 +95,7 @@ class TestVirtualMachine(unittest.TestCase):
         vm = MagicMock()
         vm.runtime.powerState = 'on'
         vm.PowerOff.return_value.info.completeTime = 1234
+        vm.PowerOff.return_value.info.error = None
 
         result = virtual_machine.power(vm, state='off')
         expected = True
@@ -100,10 +103,11 @@ class TestVirtualMachine(unittest.TestCase):
         self.assertEqual(result, expected)
 
     def test_power_reset(self):
-        """``virtual_machine`` - power reboot a VM"""
+        """``virtual_machine`` - power can reboot a VM"""
         vm = MagicMock()
         vm.runtime.powerState = 'off'
-        vm.ResetVM.return_value.info.completeTime = 1234
+        vm.ResetVM_Task.return_value.info.completeTime = 1234
+        vm.ResetVM_Task.return_value.info.error = None
 
         result = virtual_machine.power(vm, state='restart')
         expected = True
