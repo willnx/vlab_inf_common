@@ -9,10 +9,12 @@ import textwrap
 import OpenSSL
 from pyVmomi import vim
 
+from vlab_inf_common.vmware import consume_task
 from vlab_inf_common.constants import const
 
 
-def power(virtual_machine, state, timeout=600):
+
+def power(the_vm, state, timeout=600):
     """Turn on/off/restart a given virtual machine.
 
     Turning off and restarting do **not** perform graceful shutdowns; it's like
@@ -21,8 +23,8 @@ def power(virtual_machine, state, timeout=600):
 
     :Returns: Boolean
 
-    :param virtual_machine: The pyVmomi Virtual machine object
-    :type virtual_machine: vim.VirtualMachine
+    :param the_vm: The pyVmomi Virtual machine object
+    :type the_vm: vim.VirtualMachine
 
     :param state: The power state to put the VM into. Valid values are "on" "off" and "reset"
     :type state: Enum/String
@@ -35,28 +37,24 @@ def power(virtual_machine, state, timeout=600):
         error = 'state must be one of {}, supplied {}'.format(valid_states, state)
         raise ValueError(error)
 
-    if virtual_machine.runtime.powerState.lower() == state:
+    if the_vm.runtime.powerState.lower() == state:
         return True
     elif state == 'on':
-        task = virtual_machine.PowerOn()
+        task = the_vm.PowerOn()
     elif state == 'off':
-        task = virtual_machine.PowerOff()
+        task = the_vm.PowerOff()
     elif state == 'restart':
-        task = virtual_machine.ResetVM_Task()
+        task = the_vm.ResetVM_Task()
 
-    for _ in range(timeout):
-        if task.info.completeTime:
-            # Trying to turn on/off a VM that's already in the requested state
-            # yields a completed task. Who really cares if it was already on/off?
-            break
-        else:
-            time.sleep(0.1)
-    else:
+    try:
+        consume_task(task, timeout=timeout)
+    except RuntimeError:
+        # task failed or timed out
         return False
     return True
 
 
-def get_info(vcenter, virtual_machine):
+def get_info(vcenter, the_vm):
     """Obtain basic information about a virtual machine
 
     :Returns: Dictionary
@@ -64,31 +62,32 @@ def get_info(vcenter, virtual_machine):
     :param vcenter: The vCenter object
     :type vcenter: vlab_inf_common.vmware.vcenter.vCenter
 
-    :param virtual_machine: The pyVmomi Virtual machine object
-    :type virtual_machine: vim.VirtualMachine
+    :param the_vm: The pyVmomi Virtual machine object
+    :type the_vm: vim.VirtualMachine
     """
     info = {}
-    info['state'] = virtual_machine.runtime.powerState
-    info['console'] = _get_vm_console_url(vcenter, virtual_machine)
-    info['ips'] = _get_vm_ips(virtual_machine)
+    info['state'] = the_vm.runtime.powerState
+    info['console'] = _get_vm_console_url(vcenter, the_vm)
+    info['ips'] = _get_vm_ips(the_vm)
+    info['note'] = the_vm.config.annotation
     return info
 
 
-def _get_vm_ips(virtual_machine):
+def _get_vm_ips(the_vm):
     """Obtain all IPs assigned to a supplied virtual machine
 
     :Returns: List
 
-    :param virtual_machine: The pyVmomi Virtual machine object
-    :type virtual_machine: vim.VirtualMachine
+    :param the_vm: The pyVmomi Virtual machine object
+    :type the_vm: vim.VirtualMachine
     """
     ips = []
-    for nic in virtual_machine.guest.net:
+    for nic in the_vm.guest.net:
         ips += nic.ipAddress
     return ips
 
 
-def _get_vm_console_url(vcenter, virtual_machine):
+def _get_vm_console_url(vcenter, the_vm):
     """Obtain the HTML5-based console for a supplied virtual machine
 
     :Returns: (Really long) String
@@ -96,8 +95,8 @@ def _get_vm_console_url(vcenter, virtual_machine):
     :param vcenter: The vCenter object
     :type vcenter: vlab_inf_common.vmware.vcenter.vCenter
 
-    :param virtual_machine: The pyVmomi Virtual machine object
-    :type virtual_machine: vim.VirtualMachine
+    :param the_vm: The pyVmomi Virtual machine object
+    :type the_vm: vim.VirtualMachine
     """
     fqdn = None
     vcenter_cert = ssl.get_server_certificate((const.INF_VCENTER_SERVER, const.INF_VCENTER_PORT))
@@ -114,8 +113,8 @@ def _get_vm_console_url(vcenter, virtual_machine):
     locale=en_US&host={0}:{5}&sessionTicket={6}&thumbprint={7}
     """.format(const.INF_VCENTER_SERVER,
                const.INF_VCENTER_CONSOLE_PORT,
-               virtual_machine._moId,
-               virtual_machine.name,
+               the_vm._moId,
+               the_vm.name,
                server_guid,
                const.INF_VCENTER_PORT,
                session,
@@ -123,7 +122,7 @@ def _get_vm_console_url(vcenter, virtual_machine):
     return textwrap.dedent(url).replace('\n', '')
 
 
-def run_command(vcenter, virtual_machine, command, user, password, arguments='', init_timeout=600, timeout=600):
+def run_command(vcenter, the_vm, command, user, password, arguments='', init_timeout=600, timeout=600):
     """Execute a command within a supplied virtual machine
 
     :Returns: vim.vm.guest.ProcessManager.ProcessInfo
@@ -131,8 +130,8 @@ def run_command(vcenter, virtual_machine, command, user, password, arguments='',
     :param vcenter: The vCenter object
     :type vcenter: vlab_inf_common.vmware.vcenter.vCenter
 
-    :param virtual_machine: The pyVmomi Virtual machine object
-    :type virtual_machine: vim.VirtualMachine
+    :param the_vm: The pyVmomi Virtual machine object
+    :type the_vm: vim.VirtualMachine
 
     :param command: The abolute path to the command you want to execute
     :type command: String
@@ -158,7 +157,7 @@ def run_command(vcenter, virtual_machine, command, user, password, arguments='',
     program_spec = vim.vm.guest.ProcessManager.ProgramSpec(programPath=command, arguments=arguments)
     for _ in range(init_timeout):
         try:
-            pid = process_mgr.StartProgramInGuest(virtual_machine, creds, program_spec)
+            pid = process_mgr.StartProgramInGuest(the_vm, creds, program_spec)
         except vim.fault.GuestOperationsUnavailable:
             # VMTools not yet available
             time.sleep(1)
@@ -168,11 +167,11 @@ def run_command(vcenter, virtual_machine, command, user, password, arguments='',
     else:
         raise RuntimeError('VMTools not available within {} seconds'.format(init_timeout))
 
-    info = get_process_info(vcenter, virtual_machine, user, password, pid)
+    info = get_process_info(vcenter, the_vm, user, password, pid)
     for _ in range(timeout):
         if not info.endTime:
             time.sleep(1)
-            info = get_process_info(vcenter, virtual_machine, user, password, pid)
+            info = get_process_info(vcenter, the_vm, user, password, pid)
         else:
             break
     else:
@@ -180,7 +179,7 @@ def run_command(vcenter, virtual_machine, command, user, password, arguments='',
     return info
 
 
-def get_process_info(vcenter, virtual_machine, user, password, pid):
+def get_process_info(vcenter, the_vm, user, password, pid):
     """Lookup information about a running process within a virtual machine.
 
     :Returns: vim.vm.guest.ProcessManager.ProcessInfo
@@ -188,8 +187,8 @@ def get_process_info(vcenter, virtual_machine, user, password, pid):
     :param vcenter: The vCenter object
     :type vcenter: vlab_inf_common.vmware.vcenter.vCenter
 
-    :param virtual_machine: The pyVmomi Virtual machine object
-    :type virtual_machine: vim.VirtualMachine
+    :param the_vm: The pyVmomi Virtual machine object
+    :type the_vm: vim.VirtualMachine
 
     :param user: The username of the account to authenticate with inside the VM
     :type user: String
@@ -201,6 +200,6 @@ def get_process_info(vcenter, virtual_machine, user, password, pid):
     :type pid: Integer
     """
     creds = vim.vm.guest.NamePasswordAuthentication(username='root', password='a')
-    return vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest(vm=virtual_machine,
+    return vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest(vm=the_vm,
                                                                                       auth=creds,
                                                                                       pids=[pid])[0]
