@@ -7,11 +7,13 @@ from unittest.mock import MagicMock, patch
 
 from vlab_inf_common.vmware import vcenter
 
+
 class FakeObj(object):
     """An object with arbitrary names and values for testing"""
     def __init__(self, **kwargs):
         for name, value in kwargs.items():
             setattr(self, name, value)
+
 
 class TestMapObject(unittest.TestCase):
     """
@@ -114,7 +116,7 @@ class TestvCenter(vCenterBase):
         self.assertEqual(result, fake_obj1)
 
     @patch.object(vcenter, 'connect')
-    def test_creat_vm_folder(self, fake_connect):
+    def test_create_vm_folder(self, fake_connect):
         """vCenter - ``create_vm_folder`` can create a root folder"""
         fake_entity = MagicMock()
         vc = vcenter.vCenter(host='localhost', user='bob', password='iLoveKats')
@@ -126,18 +128,17 @@ class TestvCenter(vCenterBase):
 
     @patch.object(vcenter.vCenter, 'get_by_name')
     @patch.object(vcenter, 'connect')
-    def test_creat_vm_folder_datacenter(self, fake_connect, fake_get_by_name):
+    def test_create_vm_folder_datacenter(self, fake_connect, fake_get_by_name):
         """vCenter - ``create_vm_folder`` accepts the datacenter as a param"""
         fake_entity = MagicMock()
+        fake_entity.name = 'someDC'
         vc = vcenter.vCenter(host='localhost', user='bob', password='iLoveKats')
         vc._conn = self._fake_conn_factory(fake_entity)
+        vc.content.rootFolder.childEntity = [fake_entity]
 
         result = vc.create_vm_folder('/foo/bar', datacenter='someDC')
 
         self.assertEqual(result, None)
-        self.assertTrue(fake_get_by_name.called)
-
-
 
     @patch.object(vcenter.vCenter, 'get_by_name')
     @patch.object(vcenter, 'connect')
@@ -148,7 +149,7 @@ class TestvCenter(vCenterBase):
         vc._conn = self._fake_conn_factory(fake_entity)
 
         with self.assertRaises(FileNotFoundError):
-            vc.get_vm_folder('/foo/bar', datacenter='someDC')
+            vc.get_vm_folder('/foo/bar')
 
 
 class TestvCenterProperties(vCenterBase):

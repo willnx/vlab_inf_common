@@ -8,6 +8,7 @@ import collections
 from pyVim import connect
 from pyVmomi import vim
 
+from vlab_inf_common.constants import const
 from vlab_inf_common.ssl_context import get_context
 
 
@@ -43,11 +44,17 @@ class vCenter(object):
 
     :param verify: Set to False if you're using a self-signed TLS cert for vCenter
     :type verify: Boolean
+
+    :param base_dir: The root directory to use when looking for objects. Defaults
+                     to the main root directory in vCenter, or the value of the
+                     environment variable ``INF_VCENTER_TOP_LVL_DIR``.
+    :type base_dir: String
     """
 
-    def __init__(self, host, user, password, port=443):
+    def __init__(self, host, user, password, port=443, base_dir=None):
         self._conn = connect.SmartConnect(host=host, user=user, pwd=password,
                                          port=port, sslContext=get_context())
+        self._base_dir = base_dir if base_dir else const.INF_VCENTER_TOP_LVL_DIR
 
     def close(self):
         """
@@ -56,7 +63,11 @@ class vCenter(object):
         connect.Disconnect(self._conn)
 
     def create_vm_folder(self, path, datacenter=None):
-        """Folders help organize Virtual Machines.
+        """Make a folder to help organize virtual machines.
+
+        .. note::
+
+           Does not respect the ``base_dir`` attribute. Creates from the from root directory.
 
         :Returns: None
 
@@ -72,9 +83,11 @@ class vCenter(object):
         """
         dir_names = path.strip('/').split('/')
         if datacenter is None:
-            dc = self.get_by_type(vimtype=vim.Datacenter)[0]
+            dc = self.content.rootFolder.childEntity[0]
         else:
-            dc = self.get_by_name(vimtype=vim.Datacenter, name=datacenter)
+            dc = [x for x in self.content.rootFolder.childEntity if x.name == datacenter][0]
+        if not dc:
+            raise RuntimeError('No datacenter named {}'.format(datacenter))
 
         current_dir = dc.vmFolder
         for folder in dir_names:
@@ -94,6 +107,10 @@ class vCenter(object):
     def get_vm_folder(self, path, datacenter=None):
         """Recursive search through the provided path to find a specific VM folder.
 
+        .. note::
+
+           Does not respect the ``base_dir`` attribute. Searches from the from root directory.
+
         :Returns: vim.Folder
 
         :param path: The path to create. All folders will be created recursively
@@ -109,9 +126,11 @@ class vCenter(object):
         """
         dir_names = path.strip('/').split('/')
         if datacenter is None:
-            dc = self.get_by_type(vimtype=vim.Datacenter)[0]
+            dc = self.content.rootFolder.childEntity[0]
         else:
-            dc = self.get_by_name(vimtype=vim.Datacenter, name=datacenter)
+            dc = [x for x in self.content.rootFolder.childEntity if x.name == datacenter]
+        if not dc:
+            raise RuntimeError('No datacenter named {}'.format(datacenter))
 
         current_dir = dc.vmFolder
         for folder in dir_names:
@@ -124,13 +143,14 @@ class vCenter(object):
                         # Folder, but not the name we're looking for
                         continue
             else:
-                msg = 'No such folder {} in path {}'.format(folder, path)
-                raise FileNotFoundError(msg)
+                if path != '/':
+                    msg = 'No such folder {} in path {}'.format(folder, path)
+                    raise FileNotFoundError(msg)
         return current_dir
 
     def get_by_name(self, vimtype, name, parent=None):
         """
-        Find an object in vCenter by object name
+        Find an object in vCenter by object name from the defined base_dir
 
         :param vimtype: The category of object to find
         :type vimtype: pyVmomi.VmomiSupport.LazyType
@@ -138,31 +158,38 @@ class vCenter(object):
         :param name: The name of the object
         :type name: String
 
-        :param parent: (Optional) Filter under a parent folder
+        :param parent: (Optional) Filter under a parent folder below the base_dir
         :type parent: String
         """
         if parent is None:
-            bucket = self.get_by_type(vimtype)
+            bucket = self.get_by_type(vimtype, root=self._base_dir)
         else:
             bucket = self.get_by_name(vim.Folder, parent).childEntity
         for item in bucket:
             if item.name == name:
                 return item
         else:
-            raise ValueError('Unable to locate object, Type: {0}, Name: {1}'.format(vimtype, name))
+            raise ValueError('Unable to locate object named {}'.format(name))
 
-    def get_by_type(self, vimtype):
-        """
-        Returns a iterable view of vCenter objects
+    def get_by_type(self, vimtype, root=None):
+        """Find an object in vCenter by object type
 
         :Returns: pyVmomi.VmomiSupport.ManagedObject
 
         :param vimtype: The category of object to find
         :type vimtype: pyVmomi.VmomiSupport.LazyType
+
+        :param root: The root directory to look for objects in. Defaults to searching
+                     from the vCenter root directory.
+        :type root: String
         """
         if not isinstance(vimtype, collections.Iterable):
             vimtype = [vimtype]
-        entity = self.content.viewManager.CreateContainerView(container=self.content.rootFolder,
+        if root is None:
+            folder = self.content.rootFolder
+        else:
+            folder = self.get_vm_folder(path=self._base_dir)
+        entity = self.content.viewManager.CreateContainerView(container=folder,
                                                               type=vimtype,
                                                               recursive=True)
         return entity.view
