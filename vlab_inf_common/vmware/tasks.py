@@ -27,5 +27,5 @@ def consume_task(the_task, timeout=600):
         msg = 'Timeout of {} seconds exceeded for task {}'.format(timeout, the_task)
         raise RuntimeError(msg)
     if the_task.info.error:
-        raise RuntimeError(the_task.info.error)
+        raise RuntimeError(the_task.info.error.msg)
     return the_task.info.result
