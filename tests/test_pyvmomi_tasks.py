@@ -35,7 +35,7 @@ class TestConsumeTask(unittest.TestCase):
     def test_error(self, fake_time):
         """``consume_task`` - raises RuntimeError if the task complete with an error"""
         fake_task = MagicMock()
-        fake_task.info.error = 'someError'
+        fake_task.info.error.msg = 'someError'
         fake_task.info.result = 'woot'
 
         with self.assertRaises(RuntimeError):
