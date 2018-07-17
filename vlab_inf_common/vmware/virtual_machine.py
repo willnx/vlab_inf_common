@@ -69,7 +69,11 @@ def get_info(vcenter, the_vm):
     info['state'] = the_vm.runtime.powerState
     info['console'] = _get_vm_console_url(vcenter, the_vm)
     info['ips'] = _get_vm_ips(the_vm)
-    info['note'] = the_vm.config.annotation
+    # A VM being deployed has no config
+    if the_vm.config:
+        info['note'] = the_vm.config.annotation
+    else:
+        info['note'] = 'Unkonwn=Unkonwn'
     return info
 
 
@@ -199,7 +203,7 @@ def get_process_info(vcenter, the_vm, user, password, pid):
     :param pid: The process ID to lookup
     :type pid: Integer
     """
-    creds = vim.vm.guest.NamePasswordAuthentication(username='root', password='a')
+    creds = vim.vm.guest.NamePasswordAuthentication(username=user, password=password)
     return vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest(vm=the_vm,
                                                                                       auth=creds,
                                                                                       pids=[pid])[0]
