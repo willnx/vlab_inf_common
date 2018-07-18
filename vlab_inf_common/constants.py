@@ -15,6 +15,8 @@ DEFINED = OrderedDict([
             ('INF_VCENTER_USER', environ.get('INF_VCENTER_SERVER', 'tester')),
             ('INF_VCENTER_PASSWORD', environ.get('INF_VCENTER_PASSWORD', 'a')),
             ('INF_VCENTER_TOP_LVL_DIR', environ.get('INF_VCENTER_TOP_LVL_DIR', '/')),
+            ('INF_VCENTER_DATASTORE', environ.get('INF_VCENTER_DATASTORE', 'VM-Storage')),
+            ('INF_VCENTER_RESORUCE_POOL', environ.get('INF_VCENTER_RESORUCE_POOL', 'Resources')),
             ('INF_LOG_LEVEL', environ.get('INF_LOG_LEVEL', 'INFO')),
             ('INF_VCENTER_TEMPLATES_DIR', environ.get('INF_VCENTER_TEMPLATES_DIR', 'vlab/templates')),
             ('INF_VCENTER_OVA_HOME', environ.get('INF_VCENTER_OVA_HOME', 'http://localhost/ovas')),

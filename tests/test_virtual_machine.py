@@ -175,6 +175,120 @@ class TestVirtualMachine(unittest.TestCase):
 
         self.assertTrue(vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest.called)
 
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_get_lease')
+    def test_basic_deploy_from_ova(self, fake_get_lease, fake_power):
+        """``virtural_machine`` - deploy_from_ova return the new VM object"""
+        network_map = vim.OvfManager.NetworkMapping()
+        the_vm = MagicMock()
+        the_vm.name = 'newVM'
+        fake_folder = MagicMock()
+        fake_folder.childEntity = [the_vm]
+        ova = MagicMock()
+        fake_host = MagicMock()
+        fake_host.name = 'host1'
+        vcenter = MagicMock()
+        vcenter.get_by_name.return_value = fake_folder
+        vcenter.host_systems.values.return_value = [fake_host]
+
+        result = virtual_machine.deploy_from_ova(vcenter=vcenter,
+                                                 ova=ova,
+                                                 network_map=[network_map],
+                                                 username='alice',
+                                                 machine_name='newVM',
+                                                 logger=MagicMock())
+        self.assertTrue(result is the_vm)
+
+
+
+    @patch.object(virtual_machine, '_get_lease')
+    def test_deploy_from_ova_runtimeerror(self, fake_get_lease):
+        """``virtural_machine`` - deploy_from_ova raises RuntimeError if it cannot find the new created VM"""
+        network_map = vim.OvfManager.NetworkMapping()
+        the_vm = MagicMock()
+        the_vm.name = 'newVM'
+        fake_folder = MagicMock()
+        ova = MagicMock()
+        fake_host = MagicMock()
+        fake_host.name = 'host1'
+        vcenter = MagicMock()
+        vcenter.get_by_name.return_value = fake_folder
+        vcenter.host_systems.values.return_value = [fake_host]
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine.deploy_from_ova(vcenter=vcenter,
+                                            ova=ova,
+                                            network_map=[network_map],
+                                            username='alice',
+                                            machine_name='newVM',
+                                            logger=MagicMock())
+
+    @patch.object(virtual_machine, '_get_lease')
+    def test_deploy_from_ova_list(self, fake_get_lease):
+        """``virtural_machine`` - deploy_from_ova param network_map must be list"""
+        network_map = vim.OvfManager.NetworkMapping()
+        the_vm = MagicMock()
+        the_vm.name = 'newVM'
+        fake_folder = MagicMock()
+        fake_folder.childEntity = [the_vm]
+        ova = MagicMock()
+        fake_host = MagicMock()
+        fake_host.name = 'host1'
+        vcenter = MagicMock()
+        vcenter.get_by_name.return_value = fake_folder
+        vcenter.host_systems.values.return_value = [fake_host]
+
+        with self.assertRaises(ValueError):
+            virtual_machine.deploy_from_ova(vcenter=vcenter,
+                                            ova=ova,
+                                            network_map=network_map,
+                                            username='alice',
+                                            machine_name='newVM',
+                                            logger=MagicMock())
+
+    def test_get_lease(self):
+        """``virtual_machine`` - _get_lease returns a VM deployment lease"""
+        fake_lease = MagicMock()
+        fake_lease.error = None
+        fake_lease.state = 'ready'
+        fake_resource_pool = MagicMock()
+        fake_resource_pool.ImportVApp.return_value = fake_lease
+
+        result = virtual_machine._get_lease(resource_pool=fake_resource_pool,
+                                            import_spec=MagicMock(),
+                                            folder=MagicMock(),
+                                            host=MagicMock())
+
+        self.assertTrue(result is fake_lease)
+
+    def test_get_lease_error(self):
+        """``virtual_machine`` - _get_lease raises ValueError upon error"""
+        fake_lease = MagicMock()
+        fake_lease.error.msg = 'doh'
+        fake_lease.state = 'ready'
+        fake_resource_pool = MagicMock()
+        fake_resource_pool.ImportVApp.return_value = fake_lease
+
+        with self.assertRaises(ValueError):
+            virtual_machine._get_lease(resource_pool=fake_resource_pool,
+                                       import_spec=MagicMock(),
+                                       folder=MagicMock(),
+                                       host=MagicMock())
+
+    @patch.object(virtual_machine, 'time') # so test runs faster
+    def test_get_lease_timeout(self, fake_time):
+        """``virtual_machine`` - _get_lease raises ValueError upon error"""
+        fake_lease = MagicMock()
+        fake_lease.error = None
+        fake_lease.state = 'not ready'
+        fake_resource_pool = MagicMock()
+        fake_resource_pool.ImportVApp.return_value = fake_lease
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine._get_lease(resource_pool=fake_resource_pool,
+                                       import_spec=MagicMock(),
+                                       folder=MagicMock(),
+                                       host=MagicMock())
 
 if __name__ == '__main__':
     unittest.main()
