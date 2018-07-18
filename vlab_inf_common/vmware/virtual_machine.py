@@ -4,6 +4,7 @@ Common functions for interacting with Virtual Machines in VMware
 """
 import ssl
 import time
+import random
 import textwrap
 
 import OpenSSL
@@ -207,3 +208,89 @@ def get_process_info(vcenter, the_vm, user, password, pid):
     return vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest(vm=the_vm,
                                                                                       auth=creds,
                                                                                       pids=[pid])[0]
+
+
+def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger):
+    """Makes the deployment spec and uploads the OVA to create a new Virtual Machine
+
+    :Returns: vim.VirtualMachine
+
+    :param vcenter: The vCenter object
+    :type vcenter: vlab_inf_common.vmware.vcenter.vCenter
+
+    :param ova: The Ova object
+    :type ova: vlab_inf_common.vmware.ova.Ova
+
+    :param network_map: The mapping of networks defined in the OVA with what's
+                        available in vCenter.
+    :type network_map: List of vim.OvfManager.NetworkMapping
+
+    :type username: The name of the user deploying a new VM
+    :type username: String
+
+    :param machine_name: The unqiue name to give the new VM
+    :type machine_name: String
+
+    :param logger: A logging object
+    :type logger: logging.Logger
+    """
+    if not isinstance(network_map, list):
+        raise ValueError('Param network_map must be of type list, found {}'.format(type(network_map)))
+
+    folder = vcenter.get_by_name(name=username, vimtype=vim.Folder)
+    resource_pool = vcenter.resource_pools[const.INF_VCENTER_RESORUCE_POOL]
+    datastore = vcenter.datastores[const.INF_VCENTER_DATASTORE]
+    host = random.choice(list(vcenter.host_systems.values()))
+    spec_params = vim.OvfManager.CreateImportSpecParams(entityName=machine_name,
+                                                        networkMapping=network_map)
+    spec = vcenter.ovf_manager.CreateImportSpec(ovfDescriptor=ova.ovf,
+                                                resourcePool=resource_pool,
+                                                datastore=datastore,
+                                                cisp=spec_params)
+    lease = _get_lease(resource_pool, spec.importSpec, folder, host)
+    logger.debug('Uploading OVA')
+    ova.deploy(spec, lease, host.name)
+    logger.debug('OVA deployed successfully')
+    # Find the new VM so we can turn it on, and return the object to the caller
+    for entity in folder.childEntity:
+        if entity.name == machine_name:
+            the_vm = entity
+            break
+    else:
+        error = 'Unable to find newly created VM by name {}'.format(machine_name)
+        raise RuntimeError(error)
+    logger.debug("Powering on {}'s new VM {}".format(username, machine_name))
+    power(the_vm, state='on')
+    return the_vm
+
+
+def _get_lease(resource_pool, import_spec, folder, host):
+    """Obtain a OVA deploy lease that's ready to be used
+
+    :Returns: vim.Task
+
+    :param resource_pool: The resource pool that new VM will be part of.
+    :type resource_pool: vim.ResourcePool
+
+    :param import_spec: The configuration of the new VM
+    :type import_spec: vim.ImportSpec
+
+    :param folder: The folder to store the new VM in
+    :type folder: vim.Folder
+
+    :param host: The ESXi host to upload the OVA to
+    :type host: vim.HostSystem
+    """
+    lease = resource_pool.ImportVApp(import_spec, folder=folder, host=host)
+    for _ in range(30):
+        if lease.error:
+            error = lease.error.msg
+            raise ValueError(error)
+        elif lease.state != 'ready':
+            time.sleep(1)
+        else:
+            break
+    else:
+        error = 'Lease never because usable'
+        raise RuntimeError(error)
+    return lease
