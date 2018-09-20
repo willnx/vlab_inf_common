@@ -27,7 +27,7 @@ class TaskView(BaseView):
 
     @route('/task', methods=["GET"])
     @route('/task/<tid>', methods=["GET"])
-    @requires(verify=False)
+    @requires(verify=False, version=(1,2))
     @describe(get_args=TASK_ARGS)
     def handle_task(self, *args, **kwargs):
         """End point for checking the status of Celery tasks
