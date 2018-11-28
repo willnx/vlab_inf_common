@@ -3,7 +3,7 @@
 A unit tests for the virtual_machine functions
 """
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from pyVmomi import vim
 
@@ -41,10 +41,22 @@ class TestVirtualMachine(unittest.TestCase):
         vm = MagicMock()
         vm.guest.net = [nic]
 
-        ips = virtual_machine._get_vm_ips(vm)
+        ips = virtual_machine._get_vm_ips(vm, ensure_ip=False, ensure_timeout=300)
         expected_ips = ['192.168.1.1']
 
         self.assertEqual(ips, expected_ips)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_vm_ips_runtime_error(self, fake_sleep):
+        """``virtual_machine`` - _get_vm_ips raises RuntimeError if ensure_timeout is exceeded"""
+        nic = MagicMock()
+        nic.ipAddress = []
+        vm = MagicMock()
+        vm.guest.net = []
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine._get_vm_ips(vm, ensure_ip=True, ensure_timeout=5)
+
 
     @patch.object(virtual_machine, '_get_vm_ips')
     @patch.object(virtual_machine, '_get_vm_console_url')

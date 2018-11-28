@@ -56,7 +56,7 @@ def power(the_vm, state, timeout=600):
     return True
 
 
-def get_info(vcenter, the_vm):
+def get_info(vcenter, the_vm, ensure_ip=True, ensure_timeout=600):
     """Obtain basic information about a virtual machine
 
     :Returns: Dictionary
@@ -66,11 +66,17 @@ def get_info(vcenter, the_vm):
 
     :param the_vm: The pyVmomi Virtual machine object
     :type the_vm: vim.VirtualMachine
+
+    :param ensure_ip: Block until the VM acquires an IP
+    :type ensure_ip: Boolean
+
+    :param ensure_timeout: How long to wait on an IP in seconds
+    :type ensure_timeout: Integer
     """
     info = {}
     info['state'] = the_vm.runtime.powerState
     info['console'] = _get_vm_console_url(vcenter, the_vm)
-    info['ips'] = _get_vm_ips(the_vm)
+    info['ips'] = _get_vm_ips(the_vm, ensure_ip, ensure_timeout)
     if the_vm.config:
         info['note'] = ujson.loads(the_vm.config.annotation)
     else:
@@ -85,7 +91,7 @@ def get_info(vcenter, the_vm):
     return info
 
 
-def _get_vm_ips(the_vm):
+def _get_vm_ips(the_vm, ensure_ip, ensure_timeout):
     """Obtain all IPs assigned to a supplied virtual machine
 
     :Returns: List
@@ -96,6 +102,17 @@ def _get_vm_ips(the_vm):
     ips = []
     for nic in the_vm.guest.net:
         ips += nic.ipAddress
+
+    if ensure_ip and not ips:
+        for _ in range(ensure_timeout):
+            time.sleep(1)
+            for nic in the_vm.guest.net:
+                ips += nic.ipAddress
+            if ips:
+                break
+        else:
+            error = "Unable to obtain an IP within {} seconds".format(ensure_timeout)
+            raise RuntimeError(error)
     return ips
 
 
