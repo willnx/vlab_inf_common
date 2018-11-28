@@ -54,11 +54,37 @@ class TestVirtualMachine(unittest.TestCase):
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
         vm.runtime.powerState = 'on'
-        vm.config.annotation = 'some note'
+        vm.config.annotation = '{"json": true}'
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm)
-        expected_info = {'note': 'some note', 'console': 'https://test-vm-url', 'ips': ['192.168.1.1'], 'state': 'on'}
+        expected_info = {'state': 'on',
+                         'console': 'https://test-vm-url',
+                         'ips': ['192.168.1.1'],
+                         'note': {'json': True}}
+
+        self.assertEqual(info, expected_info)
+
+    @patch.object(virtual_machine, '_get_vm_ips')
+    @patch.object(virtual_machine, '_get_vm_console_url')
+    def test_get_info_no_config(self, fake_get_vm_console_url, fake_get_vm_ips):
+        """``virtual_machine`` - sets a default note when there's no config available"""
+        fake_get_vm_ips.return_value = ['192.168.1.1']
+        fake_get_vm_console_url.return_value = 'https://test-vm-url'
+        vm = MagicMock()
+        vm.runtime.powerState = 'on'
+        vm.config = None
+        vcenter = MagicMock()
+
+        info = virtual_machine.get_info(vcenter, vm)
+        expected_info = {'state': 'on',
+                         'console': 'https://test-vm-url',
+                         'ips': ['192.168.1.1'],
+                         'note': {'component': 'Unknown',
+                                  'created': 0,
+                                  'version': 'Unknown',
+                                  'generation': 0,
+                                  'configured': False}}
 
         self.assertEqual(info, expected_info)
 

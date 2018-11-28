@@ -7,6 +7,7 @@ import time
 import random
 import textwrap
 
+import ujson
 import OpenSSL
 from pyVmomi import vim
 
@@ -70,11 +71,17 @@ def get_info(vcenter, the_vm):
     info['state'] = the_vm.runtime.powerState
     info['console'] = _get_vm_console_url(vcenter, the_vm)
     info['ips'] = _get_vm_ips(the_vm)
-    # A VM being deployed has no config
     if the_vm.config:
-        info['note'] = the_vm.config.annotation
+        info['note'] = ujson.loads(the_vm.config.annotation)
     else:
-        info['note'] = 'Unkonwn=Unkonwn'
+        # A VM being deployed has no config
+        meta_data = {'component': 'Unknown',
+                     'created': 0,
+                     'version': "Unknown",
+                     'generation': 0,
+                     'configured': False
+                     }
+        info['note'] = meta_data
     return info
 
 
