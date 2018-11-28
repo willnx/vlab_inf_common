@@ -86,10 +86,10 @@ class vCenter(object):
             dc = self.content.rootFolder.childEntity[0]
         else:
             dc = [x for x in self.content.rootFolder.childEntity if x.name == datacenter]
-        if dc:
-            # b/c I want the object, not a list
-            dc = dc[0]
-        else:
+            if dc:
+                # b/c I want the object, not a list
+                dc = dc[0]
+        if not dc:
             raise RuntimeError('No datacenter named {}'.format(datacenter))
 
         current_dir = dc.vmFolder
@@ -132,9 +132,9 @@ class vCenter(object):
             dc = self.content.rootFolder.childEntity[0]
         else:
             dc = [x for x in self.content.rootFolder.childEntity if x.name == datacenter]
-        if dc:
-            dc = dc[0]
-        else:
+            if dc:
+                dc = dc[0]
+        if not dc:
             raise RuntimeError('No datacenter named {}'.format(datacenter))
 
         current_dir = dc.vmFolder
