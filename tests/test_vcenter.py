@@ -142,6 +142,19 @@ class TestvCenter(vCenterBase):
 
     @patch.object(vcenter.vCenter, 'get_by_name')
     @patch.object(vcenter, 'connect')
+    def test_create_vm_folder_runtime_error(self, fake_connect, fake_get_by_name):
+        """vCenter - ``create_vm_folder`` raises RuntimeError if no datacenter found"""
+        fake_entity = MagicMock()
+        fake_entity.name = 'someOtherDC'
+        vc = vcenter.vCenter(host='localhost', user='bob', password='iLoveKats')
+        vc._conn = self._fake_conn_factory(fake_entity)
+        vc.content.rootFolder.childEntity = [fake_entity]
+
+        with self.assertRaises(RuntimeError):
+            vc.create_vm_folder('/foo/bar', datacenter='someDC')
+
+    @patch.object(vcenter.vCenter, 'get_by_name')
+    @patch.object(vcenter, 'connect')
     def test_get_vm_folder_raises(self, fake_connect, fake_get_by_name):
         """vCenter - ``get_vm_folder`` raises FileNotFoundError when the folder doesn't exist"""
         fake_entity = MagicMock()
