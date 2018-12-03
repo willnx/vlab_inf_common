@@ -91,6 +91,31 @@ def get_info(vcenter, the_vm, ensure_ip=True, ensure_timeout=600):
     return info
 
 
+def set_meta(the_vm, meta_data):
+    """Truncate and replace the meta data associated with a given virtual machine.
+
+    :Returns: None
+
+    :Raises: ValueError - when invalid meta data supplied
+
+    :param the_vm: The virtual machine to assign the meta data to
+    :type the_vm: vim.VirtualMachine
+
+    :param meta_data: The extra information to associate to the virtual machine
+    :type meta_data: Dictionary
+    """
+    expected = {'component', 'created', 'version', 'generation', 'configured'}
+    provided = set(meta_data.keys())
+    if not expected == provided:
+        error = "Invalid meta data schema. Supplied: {}, Required: {}".format(provided, expected)
+        raise ValueError(error)
+    spec = vim.vm.ConfigSpec()
+    spec_info = ujson.dumps(meta_data)
+    spec.annotation = ujson.dumps(spec_info)
+    task = the_vm.ReconfigVM_Task(spec)
+    consume_task(task)
+
+
 def _get_vm_ips(the_vm, ensure_ip, ensure_timeout):
     """Obtain all IPs assigned to a supplied virtual machine
 
