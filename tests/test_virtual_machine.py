@@ -2,6 +2,7 @@
 """
 A unit tests for the virtual_machine functions
 """
+import json
 import unittest
 from unittest.mock import MagicMock, PropertyMock, patch
 
@@ -99,6 +100,38 @@ class TestVirtualMachine(unittest.TestCase):
                                   'configured': False}}
 
         self.assertEqual(info, expected_info)
+
+    def test_set_meta(self):
+        """``virtual_machine`` set_meta stores a JSON object as a VM annotation"""
+        fake_task = MagicMock()
+        fake_task.info.error = None
+        fake_vm = MagicMock()
+        fake_vm.ReconfigVM_Task.return_value = fake_task
+
+        new_meta = {'component': 'Windows',
+                    'version': "10",
+                    'generation': 1,
+                    'configured': False,
+                    'created': 1234,
+                    }
+
+        virtual_machine.set_meta(fake_vm, new_meta)
+        # Ugh, PyVmomi cast the string into another string
+        # So we have to deserialize it twice...
+        meta_obj = json.loads(json.loads(fake_vm.ReconfigVM_Task.call_args[0][0].annotation))
+
+        self.assertEqual(new_meta, meta_obj)
+
+    def test_set_meta_raises(self):
+        """``virtual_machine`` set_meta raises ValueError if supplied with a bad object"""
+        fake_task = MagicMock()
+        fake_task.info.error = None
+        fake_vm = MagicMock()
+        fake_vm.ReconfigVM_Task.return_value = fake_task
+
+        new_meta = {}
+        with self.assertRaises(ValueError):
+            virtual_machine.set_meta(fake_vm, new_meta)
 
     def test_power_value_error(self):
         """``virtual_machine`` - power raises ValueError when supplied with invalid power state value"""
