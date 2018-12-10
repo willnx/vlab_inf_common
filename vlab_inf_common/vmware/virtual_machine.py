@@ -111,7 +111,7 @@ def set_meta(the_vm, meta_data):
         raise ValueError(error)
     spec = vim.vm.ConfigSpec()
     spec_info = ujson.dumps(meta_data)
-    spec.annotation = ujson.dumps(spec_info)
+    spec.annotation = spec_info
     task = the_vm.ReconfigVM_Task(spec)
     consume_task(task)
 
