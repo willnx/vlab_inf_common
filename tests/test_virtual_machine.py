@@ -116,9 +116,7 @@ class TestVirtualMachine(unittest.TestCase):
                     }
 
         virtual_machine.set_meta(fake_vm, new_meta)
-        # Ugh, PyVmomi cast the string into another string
-        # So we have to deserialize it twice...
-        meta_obj = json.loads(json.loads(fake_vm.ReconfigVM_Task.call_args[0][0].annotation))
+        meta_obj = json.loads(fake_vm.ReconfigVM_Task.call_args[0][0].annotation)
 
         self.assertEqual(new_meta, meta_obj)
 
