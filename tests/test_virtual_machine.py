@@ -74,14 +74,14 @@ class TestVirtualMachine(unittest.TestCase):
         expected_info = {'state': 'on',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
-                         'note': {'json': True}}
+                         'meta': {'json': True}}
 
         self.assertEqual(info, expected_info)
 
     @patch.object(virtual_machine, '_get_vm_ips')
     @patch.object(virtual_machine, '_get_vm_console_url')
     def test_get_info_no_config(self, fake_get_vm_console_url, fake_get_vm_ips):
-        """``virtual_machine`` - sets a default note when there's no config available"""
+        """``virtual_machine`` - sets a default metadata note when there's no config available"""
         fake_get_vm_ips.return_value = ['192.168.1.1']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
@@ -93,7 +93,7 @@ class TestVirtualMachine(unittest.TestCase):
         expected_info = {'state': 'on',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
-                         'note': {'component': 'Unknown',
+                         'meta': {'component': 'Unknown',
                                   'created': 0,
                                   'version': 'Unknown',
                                   'generation': 0,
