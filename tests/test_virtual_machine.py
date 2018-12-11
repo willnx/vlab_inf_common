@@ -212,7 +212,6 @@ class TestVirtualMachine(unittest.TestCase):
     @patch.object(virtual_machine, 'get_process_info')
     def test_init_timeout(self, fake_get_process_info, fake_sleep):
         """``virtual_machine`` - run_command raises RuntimeError if VMtools isn't available before the timeout"""
-        """``virtual_machine`` - run_command returns the output of get_process_info"""
         fake_info = MagicMock()
         fake_get_process_info.return_value = fake_info
         vcenter = MagicMock()
@@ -234,6 +233,16 @@ class TestVirtualMachine(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             output = virtual_machine.run_command(vcenter, the_vm, '/bin/ls', 'bob', 'iLoveCats', timeout=1)
+
+    def test_command_one_shot(self):
+        """``virtual_machine`` - run_command returns ProcessInfo when param one_shot=True"""
+        fake_vcenter = MagicMock()
+        fake_vcenter.content.guestOperationsManager.processManager.StartProgramInGuest.return_value = 42
+        fake_vm = MagicMock()
+
+        output = virtual_machine.run_command(fake_vcenter, fake_vm, '/bin/ls', 'bob', 'iLoveCats', one_shot=True)
+
+        self.assertTrue(isinstance(output, virtual_machine.vim.vm.guest.ProcessManager.ProcessInfo))
 
     def test_process_info(self):
         """``virtual_machine`` - get_process_info calls ListProcessesInGuest"""

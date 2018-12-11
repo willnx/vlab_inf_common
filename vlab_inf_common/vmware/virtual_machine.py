@@ -176,7 +176,7 @@ def _get_vm_console_url(vcenter, the_vm):
     return textwrap.dedent(url).replace('\n', '')
 
 
-def run_command(vcenter, the_vm, command, user, password, arguments='', init_timeout=600, timeout=600):
+def run_command(vcenter, the_vm, command, user, password, arguments='', init_timeout=600, timeout=600, one_shot=False):
     """Execute a command within a supplied virtual machine
 
     :Returns: vim.vm.guest.ProcessManager.ProcessInfo
@@ -205,6 +205,9 @@ def run_command(vcenter, the_vm, command, user, password, arguments='', init_tim
 
     :param timeout: How long to wait for the command to terminate
     :type timeout: Integer
+
+    :param one_shot: Set to True if you do not want to wait on the exit status
+    :type one_shot: Boolean
     """
     creds = vim.vm.guest.NamePasswordAuthentication(username=user, password=password)
     process_mgr = vcenter.content.guestOperationsManager.processManager
@@ -221,15 +224,18 @@ def run_command(vcenter, the_vm, command, user, password, arguments='', init_tim
     else:
         raise RuntimeError('VMTools not available within {} seconds'.format(init_timeout))
 
-    info = get_process_info(vcenter, the_vm, user, password, pid)
-    for _ in range(timeout):
-        if not info.endTime:
-            time.sleep(1)
-            info = get_process_info(vcenter, the_vm, user, password, pid)
-        else:
-            break
+    if one_shot:
+        info = vim.vm.guest.ProcessManager.ProcessInfo(pid=pid)
     else:
-        raise RuntimeError('Command {} {} took more than {} seconds'.format(command, arguments, timeout))
+        info = get_process_info(vcenter, the_vm, user, password, pid)
+        for _ in range(timeout):
+            if not info.endTime:
+                time.sleep(1)
+                info = get_process_info(vcenter, the_vm, user, password, pid)
+            else:
+                break
+        else:
+            raise RuntimeError('Command {} {} took more than {} seconds'.format(command, arguments, timeout))
     return info
 
 
