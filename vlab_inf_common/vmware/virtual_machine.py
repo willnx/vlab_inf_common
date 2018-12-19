@@ -87,7 +87,6 @@ def get_info(vcenter, the_vm, ensure_ip=True, ensure_timeout=600):
                      'generation': 0,
                      'configured': False
                      }
-        info['meta'] = meta_data
     info['meta'] = meta_data
     return info
 
