@@ -78,7 +78,7 @@ def get_info(vcenter, the_vm, ensure_ip=True, ensure_timeout=600):
     info['console'] = _get_vm_console_url(vcenter, the_vm)
     info['ips'] = _get_vm_ips(the_vm, ensure_ip, ensure_timeout)
     if the_vm.config:
-        info['meta'] = ujson.loads(the_vm.config.annotation)
+        meta_data = ujson.loads(the_vm.config.annotation)
     else:
         # A VM being deployed has no config
         meta_data = {'component': 'Unknown',
@@ -88,6 +88,7 @@ def get_info(vcenter, the_vm, ensure_ip=True, ensure_timeout=600):
                      'configured': False
                      }
         info['meta'] = meta_data
+    info['meta'] = meta_data
     return info
 
 
