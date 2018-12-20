@@ -73,10 +73,10 @@ def get_info(vcenter, the_vm, ensure_ip=True, ensure_timeout=600):
     :param ensure_timeout: How long to wait on an IP in seconds
     :type ensure_timeout: Integer
     """
-    info = {}
-    info['state'] = the_vm.runtime.powerState
-    info['console'] = _get_vm_console_url(vcenter, the_vm)
-    info['ips'] = _get_vm_ips(the_vm, ensure_ip, ensure_timeout)
+    details = {}
+    details['state'] = the_vm.runtime.powerState
+    details['console'] = _get_vm_console_url(vcenter, the_vm)
+    details['ips'] = _get_vm_ips(the_vm, ensure_ip, ensure_timeout)
     if the_vm.config:
         meta_data = ujson.loads(the_vm.config.annotation)
     else:
@@ -87,8 +87,8 @@ def get_info(vcenter, the_vm, ensure_ip=True, ensure_timeout=600):
                      'generation': 0,
                      'configured': False
                      }
-    info['meta'] = meta_data
-    return info
+    details['meta'] = meta_data
+    return details
 
 
 def set_meta(the_vm, meta_data):
