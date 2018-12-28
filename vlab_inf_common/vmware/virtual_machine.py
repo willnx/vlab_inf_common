@@ -56,7 +56,7 @@ def power(the_vm, state, timeout=600):
     return True
 
 
-def get_info(vcenter, the_vm, ensure_ip=True, ensure_timeout=600):
+def get_info(vcenter, the_vm, ensure_ip=False, ensure_timeout=600):
     """Obtain basic information about a virtual machine
 
     :Returns: Dictionary
