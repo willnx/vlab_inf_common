@@ -273,7 +273,7 @@ def get_process_info(vcenter, the_vm, user, password, pid):
                                                                                       pids=[pid])[0]
 
 
-def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger):
+def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger, power_on=True):
     """Makes the deployment spec and uploads the OVA to create a new Virtual Machine
 
     :Returns: vim.VirtualMachine
@@ -296,6 +296,9 @@ def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger):
 
     :param logger: A logging object
     :type logger: logging.Logger
+
+    :param power_on: Set to True to have the VM powered on after deployment. Default True
+    :type power_on: Boolean
     """
     if not isinstance(network_map, list):
         raise ValueError('Param network_map must be of type list, found {}'.format(type(network_map)))
@@ -322,8 +325,9 @@ def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger):
     else:
         error = 'Unable to find newly created VM by name {}'.format(machine_name)
         raise RuntimeError(error)
-    logger.debug("Powering on {}'s new VM {}".format(username, machine_name))
-    power(the_vm, state='on')
+    if power_on:
+        logger.debug("Powering on {}'s new VM {}".format(username, machine_name))
+        power(the_vm, state='on')
     return the_vm
 
 
