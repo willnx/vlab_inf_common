@@ -302,7 +302,36 @@ class TestVirtualMachine(unittest.TestCase):
                                                  logger=MagicMock())
         self.assertTrue(result is the_vm)
 
+    @patch.object(virtual_machine.random, 'choice')
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_get_lease')
+    def test_deploy_from_ova_random_ds_choice(self, fake_get_lease, fake_power, fake_choice):
+        """``virtural_machine`` - deploy_from_ova picks a defined datastore to use by random"""
+        # pseudo-random choice is effectively round-robbin over a long enough
+        # period of time/ with enough choices made
+        network_map = vim.OvfManager.NetworkMapping()
+        the_vm = MagicMock()
+        the_vm.name = 'newVM'
+        fake_folder = MagicMock()
+        fake_folder.childEntity = [the_vm]
+        ova = MagicMock()
+        fake_host = MagicMock()
+        fake_host.name = 'host1'
+        vcenter = MagicMock()
+        vcenter.get_by_name.return_value = fake_folder
+        vcenter.host_systems.values.return_value = [fake_host]
 
+        virtual_machine.deploy_from_ova(vcenter=vcenter,
+                                        ova=ova,
+                                        network_map=[network_map],
+                                        username='alice',
+                                        machine_name='newVM',
+                                        logger=MagicMock())
+
+        expected_calls = 2 # 1 for the datastore, 1 for the ESXi host
+        actual_calls = fake_choice.call_count
+
+        self.assertEqual(expected_calls, actual_calls)
 
     @patch.object(virtual_machine, '_get_lease')
     def test_deploy_from_ova_runtimeerror(self, fake_get_lease):
