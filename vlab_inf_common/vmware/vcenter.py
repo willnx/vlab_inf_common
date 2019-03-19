@@ -226,7 +226,7 @@ class vCenter(object):
 
         :Returns: Dictionary
         """
-        return _map_object(self.get_by_type(vim.ResourcePool))
+        return _map_object(self.get_by_type(vim.ComputeResource))
 
     @property
     def datastores(self):
