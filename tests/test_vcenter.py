@@ -217,9 +217,20 @@ class TestvCenterProperties(vCenterBase):
         """vCenter - ``data_centers`` returns a dictionary"""
         self._verify_mapped_objects('data_centers')
 
-    def test_resource_pools_property(self):
+    @patch.object(vcenter, 'connect')
+    def test_resource_pools_property(self, fake_connect):
         """vCenter - ``resource_pools`` returns a dictionary"""
-        self._verify_mapped_objects('resource_pools')
+        fake_entity = MagicMock()
+        obj = FakeObj(name='bar')
+        obj.resourcePool = 'baz'
+        fake_entity.view = [obj]
+        vc = vcenter.vCenter(host='localhost', user='bob', password='iLoveKats')
+        vc._conn = self._fake_conn_factory(fake_entity)
+
+        result = vc.resource_pools
+        expected = {'bar': 'baz'}
+
+        self.assertEqual(result, expected)
 
     def test_datastores_property(self):
         """vCenter - ``datastores`` returns a dictionary"""

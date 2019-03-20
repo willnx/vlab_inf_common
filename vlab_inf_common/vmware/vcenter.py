@@ -226,7 +226,12 @@ class vCenter(object):
 
         :Returns: Dictionary
         """
-        return _map_object(self.get_by_type(vim.ComputeResource))
+        pools = self.get_by_type(vim.ResourcePool)
+        compute_clusters = self.get_by_type(vim.ComputeResource)
+        mapping = _map_object(pools)
+        compute_map = {x.name: x.resourcePool for x in compute_clusters}
+        mapping.update(compute_map)
+        return mapping
 
     @property
     def datastores(self):
