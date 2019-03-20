@@ -235,7 +235,7 @@ class vCenter(object):
 
         :Returns: Dictionary
         """
-        return _map_object(self.get_by_type(vim.Datastore))
+        return _map_object(self.get_by_type(vim.StoragePod))
 
     @property
     def host_systems(self):
