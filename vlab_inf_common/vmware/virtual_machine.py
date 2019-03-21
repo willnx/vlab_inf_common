@@ -306,6 +306,8 @@ def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger, p
     folder = vcenter.get_by_name(name=username, vimtype=vim.Folder)
     resource_pool = vcenter.resource_pools[const.INF_VCENTER_RESORUCE_POOL]
     datastore = vcenter.datastores[random.choice(const.INF_VCENTER_DATASTORE)]
+    if isinstance(datastore, vim.StoragePod):
+        datastore = random.choice(datastore.childEntity)
     host = random.choice(list(vcenter.host_systems.values()))
     spec_params = vim.OvfManager.CreateImportSpecParams(entityName=machine_name,
                                                         networkMapping=network_map)
