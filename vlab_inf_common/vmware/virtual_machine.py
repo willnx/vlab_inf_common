@@ -171,14 +171,12 @@ def _get_vm_console_url(vcenter, the_vm):
             break
 
     url = """\
-    https://{0}:{1}/vsphere-client/webconsole.html?vmId={2}&vmName={3}&serverGuid={4}&
-    locale=en_US&host={0}:{5}&sessionTicket={6}&thumbprint={7}
+    https://{0}/ui/webconsole.html?vmId={1}&vmName={2}&serverGuid={3}&
+    locale=en_US&host={0}&sessionTicket={4}&thumbprint={5}
     """.format(const.INF_VCENTER_SERVER,
-               const.INF_VCENTER_CONSOLE_PORT,
                the_vm._moId,
                the_vm.name,
                server_guid,
-               const.INF_VCENTER_PORT,
                session,
                thumbprint)
     return textwrap.dedent(url).replace('\n', '')
