@@ -31,7 +31,7 @@ class TestVirtualMachine(unittest.TestCase):
         vm.name = 'test-vm-name'
 
         console_url = virtual_machine._get_vm_console_url(vcenter=vcenter, the_vm=vm)
-        expected_url = 'https://localhost:9443/vsphere-client/webconsole.html?vmId=test-vm-id&vmName=test-vm-name&serverGuid=Test-UUID&locale=en_US&host=localhost:443&sessionTicket=test-session&thumbprint=test-thumbprint'
+        expected_url = 'https://localhost/ui/webconsole.html?vmId=test-vm-id&vmName=test-vm-name&serverGuid=Test-UUID&locale=en_US&host=localhost&sessionTicket=test-session&thumbprint=test-thumbprint'
 
         self.assertEqual(console_url, expected_url)
 
