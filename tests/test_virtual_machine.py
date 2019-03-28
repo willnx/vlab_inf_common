@@ -18,7 +18,7 @@ class TestVirtualMachine(unittest.TestCase):
     @patch.object(virtual_machine.ssl, 'get_server_certificate')
     def test_get_vm_console_url(self, fake_get_server_certificate, fake_load_certificate):
         """``virtual_machine`` - _get_vm_console_url returns the expected string"""
-        fake_load_certificate.return_value.digest.return_value = 'test-thumbprint'
+        fake_load_certificate.return_value.digest.return_value = b'test-thumbprint'
         item = MagicMock()
         item.key = 'VirtualCenter.FQDN'
         item.value = 'my.test.fqdn'

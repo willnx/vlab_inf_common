@@ -162,7 +162,7 @@ def _get_vm_console_url(vcenter, the_vm):
     """
     fqdn = None
     vcenter_cert = ssl.get_server_certificate((const.INF_VCENTER_SERVER, const.INF_VCENTER_PORT))
-    thumbprint = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, vcenter_cert).digest('sha1')
+    thumbprint = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, vcenter_cert).digest('sha1').decode()
     server_guid = vcenter.content.about.instanceUuid
     session = vcenter.content.sessionManager.AcquireCloneTicket()
     for item in vcenter.content.setting.setting:
