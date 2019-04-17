@@ -54,12 +54,10 @@ class TaskView(BaseView):
             # We use this to determine if the task was OK, the user supplied bad
             # input, or there's a system failure when running the task.
             if result.result['error']:
-                logger.error("Task {} failed: {}".format(task_id, result.result))
                 resp['error'] = result.result['error']
                 return ujson.dumps(resp), 400
             return ujson.dumps(result.result), 200
         elif result.status == 'FAILURE':
-            logger.error("Task {} errored: {}".format(task_id, result.result))
             return ujson.dumps(resp), 500
         else:
             return ujson.dumps(resp), 202
