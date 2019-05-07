@@ -308,6 +308,7 @@ def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger, p
         datastore = random.choice(datastore.childEntity)
     host = random.choice(list(vcenter.host_systems.values()))
     spec_params = vim.OvfManager.CreateImportSpecParams(entityName=machine_name,
+                                                        diskProvisioning='thin',
                                                         networkMapping=network_map)
     spec = vcenter.ovf_manager.CreateImportSpec(ovfDescriptor=ova.ovf,
                                                 resourcePool=resource_pool,
