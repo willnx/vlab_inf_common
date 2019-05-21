@@ -80,7 +80,9 @@ def get_info(vcenter, the_vm, ensure_ip=False, ensure_timeout=600):
     if the_vm.config:
         try:
             meta_data = ujson.loads(the_vm.config.annotation)
-        except ValueError:
+        except (ValueError, TypeError):
+            # ValueError -> VM created, but notes not updated
+            # TypeError  -> VM failed to be created; notes are None
             meta_data = {'component': 'Unknown',
                          'created': 0,
                          'version': "Unknown",

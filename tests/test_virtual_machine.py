@@ -126,6 +126,29 @@ class TestVirtualMachine(unittest.TestCase):
 
         self.assertEqual(info, expected_info)
 
+    @patch.object(virtual_machine, '_get_vm_ips')
+    @patch.object(virtual_machine, '_get_vm_console_url')
+    def test_get_info_note_none(self, fake_get_vm_console_url, fake_get_vm_ips):
+        """``virtual_machine`` - TODO"""
+        fake_get_vm_ips.return_value = ['192.168.1.1']
+        fake_get_vm_console_url.return_value = 'https://test-vm-url'
+        vm = MagicMock()
+        vm.runtime.powerState = 'on'
+        vm.config.annotation = None
+        vcenter = MagicMock()
+
+        info = virtual_machine.get_info(vcenter, vm)
+        expected_info = {'state': 'on',
+                         'console': 'https://test-vm-url',
+                         'ips': ['192.168.1.1'],
+                         'meta': {'component': 'Unknown',
+                                  'created': 0,
+                                  'version': 'Unknown',
+                                  'generation': 0,
+                                  'configured': False}}
+
+        self.assertEqual(info, expected_info)
+
     def test_set_meta(self):
         """``virtual_machine`` set_meta stores a JSON object as a VM annotation"""
         fake_task = MagicMock()
