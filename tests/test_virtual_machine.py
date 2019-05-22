@@ -445,5 +445,20 @@ class TestVirtualMachine(unittest.TestCase):
                                        folder=MagicMock(),
                                        host=MagicMock())
 
+    @patch.object(virtual_machine, 'consume_task')
+    def test_adjust_ram(self, fake_consume_task):
+        """``virtual_machine`` - 'adjust_ram' reconfigures the VM"""
+        the_vm = MagicMock()
+
+        mb_of_ram = 1024
+        virtual_machine.adjust_ram(the_vm, mb_of_ram=mb_of_ram)
+
+        the_args, _ = the_vm.Reconfigure.call_args
+        config_spec = the_args[0]
+
+        self.assertTrue(the_vm.Reconfigure.called)
+        self.assertEqual(mb_of_ram, config_spec.memoryMB)
+
+
 if __name__ == '__main__':
     unittest.main()

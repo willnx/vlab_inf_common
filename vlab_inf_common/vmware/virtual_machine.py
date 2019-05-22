@@ -364,3 +364,26 @@ def _get_lease(resource_pool, import_spec, folder, host):
         error = 'Lease never because usable'
         raise RuntimeError(error)
     return lease
+
+
+
+def adjust_ram(the_vm, mb_of_ram):
+    """Set the amount of RAM for a VM
+
+    **IMPORTANT**
+    Most VMs are required to be powered off in order to adjust RAM.
+    Unless you know that your guest OS supports hot-swap RAM, power your VM off
+    before changing how much RAM it has.
+
+    :Returns: None
+
+    :param the_vm: The virtual machine to adjust RAM on
+    :type the_vm: vim.VirtualMachine
+
+    :param mb_of_ram: The number of MB of RAM/memory to give the virtual machine
+    :type mb_of_ram: Integer
+    """
+    config_spec = vim.vm.ConfigSpec()
+    config_spec.memoryMB = mb_of_ram
+
+    consume_task(the_vm.Reconfigure(config_spec))
