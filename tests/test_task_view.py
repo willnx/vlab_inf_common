@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 
 import ujson
 from flask import Flask
-from vlab_api_common.http_auth import generate_test_token
+from vlab_api_common.http_auth import generate_v2_test_token
 
 from vlab_inf_common.views import task_view
 
@@ -20,7 +20,7 @@ class TestTaskView(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Runs once for the whole suite"""
-        cls.token = generate_test_token(username='alice')
+        cls.token = generate_v2_test_token(username='alice')
 
     @classmethod
     def setUp(cls):

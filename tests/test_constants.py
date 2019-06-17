@@ -11,7 +11,13 @@ class TestConstants(unittest.TestCase):
     def test_expected_const(self):
         """``const`` has the expected constants defined"""
         found = [x for x in dir(const) if x.isupper()]
-        expected = ['INF_LOG_LEVEL', 'INF_VCENTER_CONSOLE_PORT', 'INF_VCENTER_DATASTORE', 'INF_VCENTER_OVA_HOME', 'INF_VCENTER_PASSWORD', 'INF_VCENTER_PORT', 'INF_VCENTER_RESORUCE_POOL', 'INF_VCENTER_SERVER', 'INF_VCENTER_TEMPLATES_DIR', 'INF_VCENTER_TOP_LVL_DIR', 'INF_VCENTER_USER', 'INF_VCENTER_VERIFY_CERT', 'VLAB_URL']
+        expected = ['INF_LOG_LEVEL', 'INF_VCENTER_CONSOLE_PORT',
+                    'INF_VCENTER_DATASTORE', 'INF_VCENTER_OVA_HOME',
+                    'INF_VCENTER_PASSWORD', 'INF_VCENTER_PORT',
+                    'INF_VCENTER_RESORUCE_POOL', 'INF_VCENTER_SERVER',
+                    'INF_VCENTER_TEMPLATES_DIR', 'INF_VCENTER_TOP_LVL_DIR',
+                    'INF_VCENTER_USER', 'INF_VCENTER_VERIFY_CERT',
+                    'VLAB_URL', 'VLAB_VERIFY_TOKEN']
 
         self.assertEqual(set(found), set(expected))
 

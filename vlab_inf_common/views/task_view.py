@@ -7,6 +7,8 @@ from flask import current_app
 from flask_classy import request, route
 from vlab_api_common import describe, BaseView, requires, get_logger
 
+from vlab_inf_common.constants import const
+
 logger = get_logger(__name__, loglevel='INFO')
 
 
@@ -27,7 +29,7 @@ class TaskView(BaseView):
 
     @route('/task', methods=["GET"])
     @route('/task/<tid>', methods=["GET"])
-    @requires(verify=False, version=(1,2))
+    @requires(verify=const.VLAB_VERIFY_TOKEN, version=2)
     @describe(get_args=TASK_ARGS)
     def handle_task(self, *args, **kwargs):
         """End point for checking the status of Celery tasks

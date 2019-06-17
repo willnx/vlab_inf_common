@@ -21,6 +21,7 @@ DEFINED = OrderedDict([
             ('INF_VCENTER_TEMPLATES_DIR', environ.get('INF_VCENTER_TEMPLATES_DIR', 'vlab/templates')),
             ('INF_VCENTER_OVA_HOME', environ.get('INF_VCENTER_OVA_HOME', 'http://localhost/ovas')),
             ('INF_VCENTER_VERIFY_CERT', environ.get('INF_VCENTER_VERIFY_CERT', False)),
+            ('VLAB_VERIFY_TOKEN', environ.get('VLAB_VERIFY_TOKEN', False)),
           ])
 
 Constants = namedtuple('Constants', list(DEFINED.keys()))
