@@ -148,6 +148,9 @@ def _get_vm_ips(the_vm, ensure_ip, ensure_timeout):
         else:
             error = "Unable to obtain an IP within {} seconds".format(ensure_timeout)
             raise RuntimeError(error)
+    # No point is showing the IPv6 link local addrs if a firewall wont forward them
+    # https://en.wikipedia.org/wiki/Link-local_address
+    ips = [x for x in ips if not (x.startswith('fe80::') and x != '127.0.0.1')]
     return ips
 
 

@@ -47,6 +47,18 @@ class TestVirtualMachine(unittest.TestCase):
 
         self.assertEqual(ips, expected_ips)
 
+    def test__get_vm_ips_ipv6(self):
+        """``virtual_machine`` - _get_vm_ips does not return IPv6 Link Local IPs"""
+        nic = MagicMock()
+        nic.ipAddress = ['192.168.1.1', 'fe80::dead:beef']
+        vm = MagicMock()
+        vm.guest.net = [nic]
+
+        ips = virtual_machine._get_vm_ips(vm, ensure_ip=False, ensure_timeout=300)
+        expected_ips = ['192.168.1.1']
+
+        self.assertEqual(ips, expected_ips)
+
     @patch.object(virtual_machine.time, 'sleep')
     def test_vm_ips_runtime_error(self, fake_sleep):
         """``virtual_machine`` - _get_vm_ips raises RuntimeError if ensure_timeout is exceeded"""
