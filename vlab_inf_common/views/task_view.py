@@ -1,11 +1,15 @@
 # -*- coding: UTF-8 -*-
 """
-TODO
+Defines the API for common infrastructure API end points
 """
+from abc import abstractmethod
+
 import ujson
 from flask import current_app
-from flask_classy import request, route
-from vlab_api_common import describe, BaseView, requires, get_logger
+from flask_classy import request, route, Response
+from vlab_api_common import describe, BaseView, requires, get_logger, validate_input
+
+from vlab_inf_common.constants import const
 
 logger = get_logger(__name__, loglevel='INFO')
 
@@ -16,7 +20,7 @@ class TaskView(BaseView):
 	              "type": "object",
                   "properties": {
                      "task-id": {
-                         "descrition": "The Task Id. Optionally index the URL with the task id",
+                         "description": "The Task Id. Optionally index the URL with the task id",
                          "type": "string"
                      }
                    },
@@ -24,10 +28,24 @@ class TaskView(BaseView):
                       "task-id"
                    ]
                 }
+    NETWORK_SCHEMA = {"$schema": "http://json-schema.org/draft-04/schema#",
+	                  "type": "object",
+                      "properties": {
+                         "name": {
+                            "description": "The name of the virtual machine",
+                            "type": "string",
+                         },
+                         "new_network": {
+                            "description": "The name of the network to connect the VM to",
+                            "type": "string"
+                         }
+                      },
+                      "required": ["name", "new_network"]
+                     }
 
     @route('/task', methods=["GET"])
     @route('/task/<tid>', methods=["GET"])
-    @requires(verify=False, version=(1,2))
+    @requires(verify=const.VLAB_VERIFY_TOKEN, version=2)
     @describe(get_args=TASK_ARGS)
     def handle_task(self, *args, **kwargs):
         """End point for checking the status of Celery tasks
@@ -61,3 +79,26 @@ class TaskView(BaseView):
             return ujson.dumps(resp), 500
         else:
             return ujson.dumps(resp), 202
+
+    @route('/network', methods=["PUT"])
+    @requires(verify=const.VLAB_VERIFY_TOKEN, version=2)
+    @validate_input(schema=NETWORK_SCHEMA)
+    @describe(put=NETWORK_SCHEMA)
+    def modify_network(self, *args, **kwargs):
+        """Change the network a virtual machine is connected to"""
+        username = kwargs['token']['username']
+        machine_name = kwargs['body']['name']
+        new_network = kwargs['body']['new_network']
+        txn_id = request.headers.get('X-REQUEST-ID', 'noId')
+        resp_data = {'user' : username}
+        task = self.send_network_task(username, machine_name, new_network, txn_id)
+        resp_data['content'] = {'task-id': task.id}
+        resp = Response(ujson.dumps(resp_data))
+        resp.status_code = 202
+        resp.headers.add('Link', '<{0}{1}/task/{2}>; rel=status'.format(const.VLAB_URL, self.route_base, task.id))
+        return resp
+
+    @abstractmethod
+    def send_network_task(self, username, machine_name, new_network, txn_id):
+        """Define how the specific component passes the task to the back-end workers"""
+        pass
