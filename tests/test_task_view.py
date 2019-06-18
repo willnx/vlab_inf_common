@@ -13,6 +13,11 @@ from vlab_inf_common.views import task_view
 class MyView(task_view.TaskView):
     route_base = '/test'
 
+    def send_network_task(self, username, machine_name, new_network, txn_id):
+        """The base method is an abstractmethod"""
+        task = MagicMock()
+        task.id = 'aabbcc'
+        return task
 
 class TestTaskView(unittest.TestCase):
     """A set of test cases for ``TaskView``"""
@@ -83,6 +88,18 @@ class TestTaskView(unittest.TestCase):
                 headers={'X-Auth': self.token})
 
         self.assertEqual(resp.status_code, 400)
+
+    def test_modify_network(self):
+        """``TaskView`` - PUT on /network returns a task id"""
+        payload = {'name': "someVM", 'new_network': "myOtherNetwork"}
+
+        resp = self.app.put('/test/network',
+                            headers={'X-Auth': self.token},
+                            json=payload)
+
+        expected = {'error': None, 'content': {'task-id': 'aabbcc'}, 'params': {}}
+
+        self.assertEqual(resp.json, expected)
 
 
 if __name__ == '__main__':

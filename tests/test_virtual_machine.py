@@ -471,6 +471,39 @@ class TestVirtualMachine(unittest.TestCase):
         self.assertTrue(the_vm.Reconfigure.called)
         self.assertEqual(mb_of_ram, config_spec.memoryMB)
 
+    @patch.object(virtual_machine.vim.vm, 'ConfigSpec')
+    @patch.object(virtual_machine.vim.vm.device.VirtualDevice, 'ConnectInfo')
+    @patch.object(virtual_machine.vim.vm.device.VirtualEthernetCard, 'DistributedVirtualPortBackingInfo')
+    @patch.object(virtual_machine.vim.dvs, 'PortConnection')
+    @patch.object(virtual_machine.vim.vm.device, 'VirtualDeviceSpec')
+    @patch.object(virtual_machine, 'consume_task')
+    def test_change_network(self, fake_consume_task, fake_VirtualDeviceSpec, fake_PortConnection,
+                            fake_DistributedVirtualPortBackingInfo, fake_ConnectInfo,
+                            fake_ConfigSpec):
+        """``virtual_machine`` - 'change_network' returns None upon success"""
+        fake_network = MagicMock()
+        fake_nic = MagicMock()
+        fake_nic.deviceInfo.label = 'Network adapter 1'
+        the_vm = MagicMock()
+        the_vm.config.hardware.device = [fake_nic]
+
+        result = virtual_machine.change_network(the_vm, fake_network)
+        expected = None
+
+        self.assertTrue(result is None)
+
+    @patch.object(virtual_machine, 'consume_task')
+    def test_change_network_no_adapter(self, fake_consume_task):
+        """``virtual_machine`` - 'change_network' returns None upon success"""
+        fake_network = MagicMock()
+        fake_nic = MagicMock()
+        fake_nic.deviceInfo.label = 'Network adapter 7'
+        the_vm = MagicMock()
+        the_vm.config.hardware.device = [fake_nic]
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine.change_network(the_vm, fake_network)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -15,7 +15,6 @@ from vlab_inf_common.vmware import consume_task
 from vlab_inf_common.constants import const
 
 
-
 def power(the_vm, state, timeout=600):
     """Turn on/off/restart a given virtual machine.
 
@@ -369,7 +368,6 @@ def _get_lease(resource_pool, import_spec, folder, host):
     return lease
 
 
-
 def adjust_ram(the_vm, mb_of_ram):
     """Set the amount of RAM for a VM
 
@@ -390,3 +388,41 @@ def adjust_ram(the_vm, mb_of_ram):
     config_spec.memoryMB = mb_of_ram
 
     consume_task(the_vm.Reconfigure(config_spec))
+
+
+def change_network(the_vm, network, adapter_label='Network adapter 1'):
+    """Update the VM; replace existing network with the supplied network.
+
+    :Returns: None
+
+    :param the_vm: The virtual machine to update
+    :type the_vm: vim.VirtualMachine
+
+    :param network: The new network the VM should be connected to
+    :type network: vim.Network
+
+    :param adapter_label: The name of the virtual NIC to connect to a new device
+    :type adapter_label: String
+    """
+    devices = [x for x in the_vm.config.hardware.device if x.deviceInfo.label == adapter_label]
+    if not devices:
+        error = "VM has no network adapter named {}".format(adapter_label)
+        raise RuntimeError(error)
+    else:
+        device = devices[0]
+
+    nicspec = vim.vm.device.VirtualDeviceSpec()
+    nicspec.operation = vim.vm.device.VirtualDeviceSpec.Operation.edit
+    nicspec.device = device
+    nicspec.device.wakeOnLanEnabled = True
+    dvs_port_connection = vim.dvs.PortConnection()
+    dvs_port_connection.portgroupKey = network.key
+    dvs_port_connection.switchUuid = network.config.distributedVirtualSwitch.uuid
+    nicspec.device.backing = vim.vm.device.VirtualEthernetCard.DistributedVirtualPortBackingInfo()
+    nicspec.device.backing.port = dvs_port_connection
+    nicspec.device.connectable = vim.vm.device.VirtualDevice.ConnectInfo()
+    nicspec.device.connectable.startConnected = True
+    nicspec.device.connectable.allowGuestControl = True
+    nicspec.device.connectable.connected = True
+    config_spec = vim.vm.ConfigSpec(deviceChange=[nicspec])
+    consume_task(the_vm.ReconfigVM_Task(config_spec))
