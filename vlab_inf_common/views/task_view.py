@@ -28,20 +28,6 @@ class TaskView(BaseView):
                       "task-id"
                    ]
                 }
-    NETWORK_SCHEMA = {"$schema": "http://json-schema.org/draft-04/schema#",
-	                  "type": "object",
-                      "properties": {
-                         "name": {
-                            "description": "The name of the virtual machine",
-                            "type": "string",
-                         },
-                         "new_network": {
-                            "description": "The name of the network to connect the VM to",
-                            "type": "string"
-                         }
-                      },
-                      "required": ["name", "new_network"]
-                     }
 
     @route('/task', methods=["GET"])
     @route('/task/<tid>', methods=["GET"])
@@ -80,6 +66,33 @@ class TaskView(BaseView):
         else:
             return ujson.dumps(resp), 202
 
+
+class MachineView(TaskView):
+    """Defines an asynchronous API for interacting with virtual machines in vLab.
+
+    When subclassing this view, make sure to define the ``RESROUCE`` attribute.
+    Failing to do so will result in requests not being forwarded to the backend
+    workers.
+
+    :attr RESOURCE: The name of the component/type of virtual machine
+    :type RESROUCE: String
+    """
+    RESOURCE = None
+    NETWORK_SCHEMA = {"$schema": "http://json-schema.org/draft-04/schema#",
+	                  "type": "object",
+                      "properties": {
+                         "name": {
+                            "description": "The name of the virtual machine",
+                            "type": "string",
+                         },
+                         "new_network": {
+                            "description": "The name of the network to connect the VM to",
+                            "type": "string"
+                         }
+                      },
+                      "required": ["name", "new_network"]
+                     }
+
     @route('/network', methods=["PUT"])
     @requires(verify=const.VLAB_VERIFY_TOKEN, version=2)
     @validate_input(schema=NETWORK_SCHEMA)
@@ -91,14 +104,10 @@ class TaskView(BaseView):
         new_network = kwargs['body']['new_network']
         txn_id = request.headers.get('X-REQUEST-ID', 'noId')
         resp_data = {'user' : username}
-        task = self.send_network_task(username, machine_name, new_network, txn_id)
+        task = current_app.celery_app.send_task('{}.modify_network'.format(self.RESOURCE.lower()),
+                                                [username, machine_name, txn_id])
         resp_data['content'] = {'task-id': task.id}
         resp = Response(ujson.dumps(resp_data))
         resp.status_code = 202
         resp.headers.add('Link', '<{0}{1}/task/{2}>; rel=status'.format(const.VLAB_URL, self.route_base, task.id))
         return resp
-
-    @abstractmethod
-    def send_network_task(self, username, machine_name, new_network, txn_id):
-        """Define how the specific component passes the task to the back-end workers"""
-        pass

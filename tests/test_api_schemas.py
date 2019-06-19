@@ -23,7 +23,7 @@ class TestTaskViewSchema(unittest.TestCase):
     def test_network_put_schema(self):
         """The schema defined for PUT on /network is valid"""
         try:
-            Draft4Validator.check_schema(task_view.TaskView.NETWORK_SCHEMA)
+            Draft4Validator.check_schema(task_view.MachineView.NETWORK_SCHEMA)
             schema_valid = True
         except RuntimeError:
             schema_valid = False
