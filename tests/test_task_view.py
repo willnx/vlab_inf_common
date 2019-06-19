@@ -13,11 +13,11 @@ from vlab_inf_common.views import task_view
 class MyView(task_view.TaskView):
     route_base = '/test'
 
-    def send_network_task(self, username, machine_name, new_network, txn_id):
-        """The base method is an abstractmethod"""
-        task = MagicMock()
-        task.id = 'aabbcc'
-        return task
+
+class MyMachineView(task_view.MachineView):
+    route_base = '/test'
+    RESOURCE = 'myNewKindOfVM'
+
 
 class TestTaskView(unittest.TestCase):
     """A set of test cases for ``TaskView``"""
@@ -89,8 +89,31 @@ class TestTaskView(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 400)
 
+
+class TestMachineView(unittest.TestCase):
+    """A suite of test cases for the ``MachineView`` class"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Runs once for the whole suite"""
+        cls.token = generate_v2_test_token(username='alice')
+
+    @classmethod
+    def setUp(cls):
+        "Runs before every test case"
+        # Setup the app
+        app = Flask(__name__)
+        MyMachineView.register(app)
+        app.config['TESTING'] = True
+        app.celery_app = MagicMock()
+        cls.app = app.test_client()
+        # Mock Celery response
+        cls.fake_task = MagicMock()
+        cls.fake_task.id = 'aabbcc'
+        app.celery_app.send_task.return_value = cls.fake_task
+
     def test_modify_network(self):
-        """``TaskView`` - PUT on /network returns a task id"""
+        """``MachineView`` - PUT on /network returns a task id"""
         payload = {'name': "someVM", 'new_network': "myOtherNetwork"}
 
         resp = self.app.put('/test/network',
