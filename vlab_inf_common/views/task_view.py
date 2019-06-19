@@ -105,7 +105,7 @@ class MachineView(TaskView):
         txn_id = request.headers.get('X-REQUEST-ID', 'noId')
         resp_data = {'user' : username}
         task = current_app.celery_app.send_task('{}.modify_network'.format(self.RESOURCE.lower()),
-                                                [username, machine_name, txn_id])
+                                                [username, machine_name, new_network, txn_id])
         resp_data['content'] = {'task-id': task.id}
         resp = Response(ujson.dumps(resp_data))
         resp.status_code = 202
