@@ -70,41 +70,46 @@ class TestVirtualMachine(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             virtual_machine._get_vm_ips(vm, ensure_ip=True, ensure_timeout=5)
 
-
+    @patch.object(virtual_machine, 'get_networks')
     @patch.object(virtual_machine, '_get_vm_ips')
     @patch.object(virtual_machine, '_get_vm_console_url')
-    def test_get_info(self, fake_get_vm_console_url, fake_get_vm_ips):
+    def test_get_info(self, fake_get_vm_console_url, fake_get_vm_ips, fake_get_networks):
         """``virtual_machine`` - get_info returns the expected data"""
         fake_get_vm_ips.return_value = ['192.168.1.1']
+        fake_get_networks.return_value = ['network1', 'network2']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
         vm.runtime.powerState = 'on'
         vm.config.annotation = '{"json": true}'
         vcenter = MagicMock()
 
-        info = virtual_machine.get_info(vcenter, vm)
+        info = virtual_machine.get_info(vcenter, vm, 'alice')
         expected_info = {'state': 'on',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
+                         'networks' : ['network1', 'network2'],
                          'meta': {'json': True}}
 
         self.assertEqual(info, expected_info)
 
+    @patch.object(virtual_machine, 'get_networks')
     @patch.object(virtual_machine, '_get_vm_ips')
     @patch.object(virtual_machine, '_get_vm_console_url')
-    def test_get_info_new_vm(self, fake_get_vm_console_url, fake_get_vm_ips):
+    def test_get_info_new_vm(self, fake_get_vm_console_url, fake_get_vm_ips, fake_get_networks):
         """``virtual_machine`` - get_info returns the expected data, even if a new VM is being deployed at the same time"""
         fake_get_vm_ips.return_value = ['192.168.1.1']
+        fake_get_networks.return_value = ['network1', 'network2']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
         vm.runtime.powerState = 'on'
         vm.config.annotation = ''
         vcenter = MagicMock()
 
-        info = virtual_machine.get_info(vcenter, vm)
+        info = virtual_machine.get_info(vcenter, vm, 'alice')
         expected_info = {'state': 'on',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
+                         'networks' : ['network1', 'network2'],
                          'meta': {'component': 'Unknown',
                                   'created': 0,
                                   'version': "Unknown",
@@ -115,21 +120,24 @@ class TestVirtualMachine(unittest.TestCase):
 
         self.assertEqual(info, expected_info)
 
+    @patch.object(virtual_machine, 'get_networks')
     @patch.object(virtual_machine, '_get_vm_ips')
     @patch.object(virtual_machine, '_get_vm_console_url')
-    def test_get_info_no_config(self, fake_get_vm_console_url, fake_get_vm_ips):
+    def test_get_info_no_config(self, fake_get_vm_console_url, fake_get_vm_ips, fake_get_networks):
         """``virtual_machine`` - sets a default metadata note when there's no config available"""
         fake_get_vm_ips.return_value = ['192.168.1.1']
+        fake_get_networks.return_value = ['network1', 'network2']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
         vm.runtime.powerState = 'on'
         vm.config = None
         vcenter = MagicMock()
 
-        info = virtual_machine.get_info(vcenter, vm)
+        info = virtual_machine.get_info(vcenter, vm, 'alice')
         expected_info = {'state': 'on',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
+                         'networks' : ['network1', 'network2'],
                          'meta': {'component': 'Unknown',
                                   'created': 0,
                                   'version': 'Unknown',
@@ -138,21 +146,24 @@ class TestVirtualMachine(unittest.TestCase):
 
         self.assertEqual(info, expected_info)
 
+    @patch.object(virtual_machine, 'get_networks')
     @patch.object(virtual_machine, '_get_vm_ips')
     @patch.object(virtual_machine, '_get_vm_console_url')
-    def test_get_info_note_none(self, fake_get_vm_console_url, fake_get_vm_ips):
+    def test_get_info_note_none(self, fake_get_vm_console_url, fake_get_vm_ips, fake_get_networks):
         """``virtual_machine`` - TODO"""
         fake_get_vm_ips.return_value = ['192.168.1.1']
+        fake_get_networks.return_value = ['network1', 'network2']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
         vm.runtime.powerState = 'on'
         vm.config.annotation = None
         vcenter = MagicMock()
 
-        info = virtual_machine.get_info(vcenter, vm)
+        info = virtual_machine.get_info(vcenter, vm, 'alice')
         expected_info = {'state': 'on',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
+                         'networks' : ['network1', 'network2'],
                          'meta': {'component': 'Unknown',
                                   'created': 0,
                                   'version': 'Unknown',
@@ -503,6 +514,20 @@ class TestVirtualMachine(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             virtual_machine.change_network(the_vm, fake_network)
+
+    def test_get_networks(self):
+        """``virtual_machine`` - 'get_networks' Returns a List"""
+        fake_vcenter = MagicMock()
+        fake_vm = MagicMock()
+        fake_vm.name = 'someVM'
+        fake_network = MagicMock()
+        fake_network.vm = [fake_vm]
+        fake_vcenter.networks = {'bill_someNetwork' : fake_network}
+
+        result = virtual_machine.get_networks(fake_vcenter, fake_vm, 'bill')
+        expected = ['someNetwork']
+
+        self.assertEqual(result, expected)
 
 
 if __name__ == '__main__':

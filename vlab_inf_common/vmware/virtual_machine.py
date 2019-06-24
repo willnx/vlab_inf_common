@@ -55,7 +55,7 @@ def power(the_vm, state, timeout=600):
     return True
 
 
-def get_info(vcenter, the_vm, ensure_ip=False, ensure_timeout=600):
+def get_info(vcenter, the_vm, username, ensure_ip=False, ensure_timeout=600):
     """Obtain basic information about a virtual machine
 
     :Returns: Dictionary
@@ -65,6 +65,9 @@ def get_info(vcenter, the_vm, ensure_ip=False, ensure_timeout=600):
 
     :param the_vm: The pyVmomi Virtual machine object
     :type the_vm: vim.VirtualMachine
+
+    :param username: The name of the user who owns the VM
+    :type username: String
 
     :param ensure_ip: Block until the VM acquires an IP
     :type ensure_ip: Boolean
@@ -76,6 +79,7 @@ def get_info(vcenter, the_vm, ensure_ip=False, ensure_timeout=600):
     details['state'] = the_vm.runtime.powerState
     details['console'] = _get_vm_console_url(vcenter, the_vm)
     details['ips'] = _get_vm_ips(the_vm, ensure_ip, ensure_timeout)
+    details['networks'] = get_networks(vcenter, the_vm, username)
     if the_vm.config:
         try:
             meta_data = ujson.loads(the_vm.config.annotation)
@@ -98,6 +102,29 @@ def get_info(vcenter, the_vm, ensure_ip=False, ensure_timeout=600):
                      }
     details['meta'] = meta_data
     return details
+
+
+def get_networks(vcenter, the_vm, username):
+    """Obtain a list of all networks a VM is connected to.
+
+    :Returns: List
+
+    :param vcenter: An established connection to vCenter
+    :type vcenter: vlab_inf_common.vmware.vcenter.vCenter
+
+    :param the_vm: The virtual machine that owns the specific NIC
+    :type the_vm: vim.VirtualMachine
+
+    :param username: The name of the user who owns the VM
+    :type username: String
+    """
+    networks = []
+    user_networks = {x:y for x,y in vcenter.networks.items() if x.startswith(username)}
+    for net_name, net_object in user_networks.items():
+        for vm in net_object.vm:
+            if vm.name == the_vm.name:
+                networks.append(net_name.replace('{}_'.format(username), ''))
+    return networks
 
 
 def set_meta(the_vm, meta_data):
