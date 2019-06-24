@@ -55,6 +55,7 @@ class vCenter(object):
         self._conn = connect.SmartConnect(host=host, user=user, pwd=password,
                                          port=port, sslContext=get_context())
         self._base_dir = base_dir if base_dir else const.INF_VCENTER_TOP_LVL_DIR
+        self._net_cache = None
 
     def close(self):
         """
@@ -258,7 +259,11 @@ class vCenter(object):
 
         :Returns: Dictionary
         """
-        return _map_object(self.get_by_type(vim.Network))
+        if self._net_cache:
+            return self._net_cache
+        else:
+            self._net_cache =_map_object(self.get_by_type(vim.Network))
+            return self._net_cache
 
     @property
     def dv_switches(self):
