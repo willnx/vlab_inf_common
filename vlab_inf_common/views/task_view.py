@@ -101,7 +101,7 @@ class MachineView(TaskView):
         """Change the network a virtual machine is connected to"""
         username = kwargs['token']['username']
         machine_name = kwargs['body']['name']
-        new_network = kwargs['body']['new_network']
+        new_network = '{}_{}'.format(username, kwargs['body']['new_network'])
         txn_id = request.headers.get('X-REQUEST-ID', 'noId')
         resp_data = {'user' : username}
         task = current_app.celery_app.send_task('{}.modify_network'.format(self.RESOURCE.lower()),
