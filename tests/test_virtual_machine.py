@@ -79,12 +79,12 @@ class TestVirtualMachine(unittest.TestCase):
         fake_get_networks.return_value = ['network1', 'network2']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
-        vm.runtime.powerState = 'on'
+        vm.runtime.powerState = 'poweredOn'
         vm.config.annotation = '{"json": true}'
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm, 'alice')
-        expected_info = {'state': 'on',
+        expected_info = {'state': 'poweredOn',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
                          'networks' : ['network1', 'network2'],
@@ -101,12 +101,12 @@ class TestVirtualMachine(unittest.TestCase):
         fake_get_networks.return_value = ['network1', 'network2']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
-        vm.runtime.powerState = 'on'
+        vm.runtime.powerState = 'poweredOn'
         vm.config.annotation = ''
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm, 'alice')
-        expected_info = {'state': 'on',
+        expected_info = {'state': 'poweredOn',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
                          'networks' : ['network1', 'network2'],
@@ -129,12 +129,12 @@ class TestVirtualMachine(unittest.TestCase):
         fake_get_networks.return_value = ['network1', 'network2']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
-        vm.runtime.powerState = 'on'
+        vm.runtime.powerState = 'poweredOn'
         vm.config = None
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm, 'alice')
-        expected_info = {'state': 'on',
+        expected_info = {'state': 'poweredOn',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
                          'networks' : ['network1', 'network2'],
@@ -155,12 +155,12 @@ class TestVirtualMachine(unittest.TestCase):
         fake_get_networks.return_value = ['network1', 'network2']
         fake_get_vm_console_url.return_value = 'https://test-vm-url'
         vm = MagicMock()
-        vm.runtime.powerState = 'on'
+        vm.runtime.powerState = 'poweredOn'
         vm.config.annotation = None
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm, 'alice')
-        expected_info = {'state': 'on',
+        expected_info = {'state': 'poweredOn',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
                          'networks' : ['network1', 'network2'],
@@ -211,7 +211,7 @@ class TestVirtualMachine(unittest.TestCase):
     def test_power_on_already(self):
         """``virtual_machine`` - power returns True if the VM is already in the requested power state"""
         vm = MagicMock()
-        vm.runtime.powerState = 'on'
+        vm.runtime.powerState = 'poweredOn'
 
         result = virtual_machine.power(vm, state='on')
         expected = True
@@ -221,7 +221,7 @@ class TestVirtualMachine(unittest.TestCase):
     def test_power_on(self):
         """``virtual_machine`` - power can turn a VM on"""
         vm = MagicMock()
-        vm.runtime.powerState = 'off'
+        vm.runtime.powerState = 'poweredOff'
         vm.PowerOn.return_value.info.completeTime = 1234
         vm.PowerOn.return_value.info.error = None
 
@@ -233,7 +233,7 @@ class TestVirtualMachine(unittest.TestCase):
     def test_power_off(self):
         """``virtual_machine`` - power can turn a VM off"""
         vm = MagicMock()
-        vm.runtime.powerState = 'on'
+        vm.runtime.powerState = 'poweredOn'
         vm.PowerOff.return_value.info.completeTime = 1234
         vm.PowerOff.return_value.info.error = None
 
@@ -245,7 +245,7 @@ class TestVirtualMachine(unittest.TestCase):
     def test_power_reset(self):
         """``virtual_machine`` - power can reboot a VM"""
         vm = MagicMock()
-        vm.runtime.powerState = 'off'
+        vm.runtime.powerState = 'poweredOff'
         vm.ResetVM_Task.return_value.info.completeTime = 1234
         vm.ResetVM_Task.return_value.info.error = None
 
@@ -258,7 +258,7 @@ class TestVirtualMachine(unittest.TestCase):
     def test_power_timeout(self, fake_sleep):
         """``virtual_machine`` - power returns false if the task timesout"""
         vm = MagicMock()
-        vm.runtime.powerState = 'off'
+        vm.runtime.powerState = 'poweredOff'
         vm.ResetVM_Task.return_value.info.completeTime = None
 
         result = virtual_machine.power(vm, state='restart')

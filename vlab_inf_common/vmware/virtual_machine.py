@@ -38,7 +38,7 @@ def power(the_vm, state, timeout=600):
         error = 'state must be one of {}, supplied {}'.format(valid_states, state)
         raise ValueError(error)
 
-    if the_vm.runtime.powerState.lower() == state:
+    if the_vm.runtime.powerState.lower().replace('powered', '') == state:
         return True
     elif state == 'on':
         task = the_vm.PowerOn()
