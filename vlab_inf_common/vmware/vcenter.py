@@ -199,7 +199,7 @@ class vCenter(object):
                                                               type=vimtype,
                                                               recursive=True)
         answer = entity.view
-        #entity.DestroyView()
+        entity.DestroyView()
         return answer
 
     @property
