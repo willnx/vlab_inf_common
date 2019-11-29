@@ -198,7 +198,9 @@ class vCenter(object):
         entity = self.content.viewManager.CreateContainerView(container=folder,
                                                               type=vimtype,
                                                               recursive=True)
-        return entity.view
+        answer = entity.view
+        #entity.DestroyView()
+        return answer
 
     @property
     def content(self):
