@@ -80,6 +80,7 @@ def get_info(vcenter, the_vm, username, ensure_ip=False, ensure_timeout=600):
     details['console'] = _get_vm_console_url(vcenter, the_vm)
     details['ips'] = _get_vm_ips(the_vm, ensure_ip, ensure_timeout)
     details['networks'] = get_networks(vcenter, the_vm, username)
+    details['moid'] = the_vm._moId
     if the_vm.config:
         try:
             meta_data = ujson.loads(the_vm.config.annotation)
