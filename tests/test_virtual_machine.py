@@ -81,12 +81,14 @@ class TestVirtualMachine(unittest.TestCase):
         vm = MagicMock()
         vm.runtime.powerState = 'poweredOn'
         vm.config.annotation = '{"json": true}'
+        vm._moId = 'vm-1234'
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm, 'alice')
         expected_info = {'state': 'poweredOn',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
+                         'moid' : 'vm-1234',
                          'networks' : ['network1', 'network2'],
                          'meta': {'json': True}}
 
@@ -103,6 +105,7 @@ class TestVirtualMachine(unittest.TestCase):
         vm = MagicMock()
         vm.runtime.powerState = 'poweredOn'
         vm.config.annotation = ''
+        vm._moId = 'vm-1234'
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm, 'alice')
@@ -110,6 +113,7 @@ class TestVirtualMachine(unittest.TestCase):
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
                          'networks' : ['network1', 'network2'],
+                         'moid' : 'vm-1234',
                          'meta': {'component': 'Unknown',
                                   'created': 0,
                                   'version': "Unknown",
@@ -131,12 +135,14 @@ class TestVirtualMachine(unittest.TestCase):
         vm = MagicMock()
         vm.runtime.powerState = 'poweredOn'
         vm.config = None
+        vm._moId = 'vm-1234'
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm, 'alice')
         expected_info = {'state': 'poweredOn',
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
+                         'moid' : 'vm-1234',
                          'networks' : ['network1', 'network2'],
                          'meta': {'component': 'Unknown',
                                   'created': 0,
@@ -157,6 +163,7 @@ class TestVirtualMachine(unittest.TestCase):
         vm = MagicMock()
         vm.runtime.powerState = 'poweredOn'
         vm.config.annotation = None
+        vm._moId = 'vm-1234'
         vcenter = MagicMock()
 
         info = virtual_machine.get_info(vcenter, vm, 'alice')
@@ -164,6 +171,7 @@ class TestVirtualMachine(unittest.TestCase):
                          'console': 'https://test-vm-url',
                          'ips': ['192.168.1.1'],
                          'networks' : ['network1', 'network2'],
+                         'moid': 'vm-1234',
                          'meta': {'component': 'Unknown',
                                   'created': 0,
                                   'version': 'Unknown',
