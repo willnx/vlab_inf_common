@@ -344,9 +344,10 @@ class TestVirtualMachine(unittest.TestCase):
         ova = MagicMock()
         fake_host = MagicMock()
         fake_host.name = 'host1'
+        fake_host.runtime.inMaintenanceMode = False
         vcenter = MagicMock()
         vcenter.get_by_name.return_value = fake_folder
-        vcenter.host_systems.values.return_value = [fake_host]
+        vcenter.host_systems = {'someHost': fake_host}
 
         result = virtual_machine.deploy_from_ova(vcenter=vcenter,
                                                  ova=ova,
@@ -397,9 +398,10 @@ class TestVirtualMachine(unittest.TestCase):
         ova = MagicMock()
         fake_host = MagicMock()
         fake_host.name = 'host1'
+        fake_host.runtime.inMaintenanceMode = False
         vcenter = MagicMock()
         vcenter.get_by_name.return_value = fake_folder
-        vcenter.host_systems.values.return_value = [fake_host]
+        vcenter.host_systems = {'someHost': fake_host}
 
         with self.assertRaises(RuntimeError):
             virtual_machine.deploy_from_ova(vcenter=vcenter,
