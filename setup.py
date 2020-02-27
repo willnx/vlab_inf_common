@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 setup(name="vlab-inf-common",
       author="Nicholas Willhite, Kevin Broadware",
       author_email='willnx84@gmail.com',
-      version='2019.12.05',
+      version='2020.02.27',
       packages=find_packages(),
       include_package_data=True,
       classifiers=[
