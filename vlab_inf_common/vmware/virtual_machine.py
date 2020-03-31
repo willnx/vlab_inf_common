@@ -419,6 +419,24 @@ def adjust_ram(the_vm, mb_of_ram):
     consume_task(the_vm.Reconfigure(config_spec))
 
 
+def adjust_cpu(the_vm, cpu_count):
+    """Set the number of CPUs for a VM
+
+    **IMPORTANT**
+    Make sure your VM is powered off before calling this function, otherwise
+    it'll fail.
+
+    :param the_vm: The virtual machine to adjust CPU count on
+    :type the_vm: vim.VirtualMachine
+
+    :param cpu_count: The number of CPU cores to allocate to the VM
+    :type cpu_count: Integer
+    """
+    config_spec = vim.vm.ConfigSpec()
+    config_spec.numCPUs = cpu_count
+    consume_task(the_vm.Reconfigure(config_spec))
+
+
 def change_network(the_vm, network, adapter_label='Network adapter 1'):
     """Update the VM; replace existing network with the supplied network.
 

@@ -492,6 +492,19 @@ class TestVirtualMachine(unittest.TestCase):
         self.assertTrue(the_vm.Reconfigure.called)
         self.assertEqual(mb_of_ram, config_spec.memoryMB)
 
+    @patch.object(virtual_machine, 'consume_task')
+    def test_adjust_cpu(self, fake_consume_task):
+        """``virtual_machine`` - 'adjust_cpu' reconfigures the VM"""
+        the_vm = MagicMock()
+        cpu_count = 8
+        virtual_machine.adjust_cpu(the_vm, cpu_count=cpu_count)
+
+        the_args, _ = the_vm.Reconfigure.call_args
+        config_spec = the_args[0]
+
+        self.assertTrue(the_vm.Reconfigure.called)
+        self.assertEqual(cpu_count, config_spec.numCPUs)
+
     @patch.object(virtual_machine.vim.vm, 'ConfigSpec')
     @patch.object(virtual_machine.vim.vm.device.VirtualDevice, 'ConnectInfo')
     @patch.object(virtual_machine.vim.vm.device.VirtualEthernetCard, 'DistributedVirtualPortBackingInfo')
