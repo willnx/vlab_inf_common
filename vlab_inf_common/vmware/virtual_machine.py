@@ -297,11 +297,20 @@ def get_process_info(vcenter, the_vm, user, password, pid):
     :param pid: The process ID to lookup
     :type pid: Integer
     """
+    info = None
     creds = vim.vm.guest.NamePasswordAuthentication(username=user, password=password)
-    return vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest(vm=the_vm,
-                                                                                      auth=creds,
-                                                                                      pids=[pid])[0]
-
+    for _ in range(30):
+        try:
+            info = vcenter.content.guestOperationsManager.processManager.ListProcessesInGuest(vm=the_vm,
+                                                                                              auth=creds,
+                                                                                              pids=[pid])[0]
+        except vim.fault.GuestOperationsUnavailable:
+            time.sleep(1)
+        else:
+            break
+    if info is None:
+        raise RuntimeError('Timed out trying to lookup info for PID {}'.format(pid))
+    return info                                                                                
 
 def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger, power_on=True):
     """Makes the deployment spec and uploads the OVA to create a new Virtual Machine
