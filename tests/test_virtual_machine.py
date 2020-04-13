@@ -3,6 +3,7 @@
 A unit tests for the virtual_machine functions
 """
 import json
+
 import unittest
 from unittest.mock import MagicMock, PropertyMock, patch
 
@@ -551,6 +552,243 @@ class TestVirtualMachine(unittest.TestCase):
         expected = ['someNetwork']
 
         self.assertEqual(result, expected)
+
+
+class TestConfigStaticIP(unittest.TestCase):
+    """A suite of test cases for the ``config_static_ip`` function"""
+
+    @patch.object(virtual_machine, '_config_windows_network')
+    def test_windows(self, fake_config_windows_network):
+        """``config_static_ip`` support Windows operating system"""
+        virtual_machine.config_static_ip(vcenter=MagicMock(),
+                                         the_vm=MagicMock(),
+                                         static_ip='1.2.3.4',
+                                         default_gateway='1.2.3.1',
+                                         subnet_mask='255.255.255.0',
+                                         dns=['1.2.3.2'],
+                                         user='someAdminUser',
+                                         password='IloveKatz!',
+                                         logger=MagicMock(),
+                                         os='windows')
+
+        self.assertTrue(fake_config_windows_network.called)
+
+    @patch.object(virtual_machine, '_config_centos_network')
+    def test_centos(self, fake_config_centos_network):
+        """``config_static_ip`` support CentOS operating system"""
+        virtual_machine.config_static_ip(vcenter=MagicMock(),
+                                         the_vm=MagicMock(),
+                                         static_ip='1.2.3.4',
+                                         default_gateway='1.2.3.1',
+                                         subnet_mask='255.255.255.0',
+                                         dns=['1.2.3.2'],
+                                         user='someAdminUser',
+                                         password='IloveKatz!',
+                                         logger=MagicMock(),
+                                         os='centos')
+
+        self.assertTrue(fake_config_centos_network.called)
+
+    def test_unsupports_os(self):
+        """``config_static_ip`` raises ValueError when supplied with an unsupported OS"""
+        with self.assertRaises(ValueError):
+            virtual_machine.config_static_ip(vcenter=MagicMock(),
+                                             the_vm=MagicMock(),
+                                             static_ip='1.2.3.4',
+                                             default_gateway='1.2.3.1',
+                                             subnet_mask='255.255.255.0',
+                                             dns=['1.2.3.2'],
+                                             user='someAdminUser',
+                                             password='IloveKatz!',
+                                             logger=MagicMock(),
+                                             os='blorgOS')
+
+    @patch.object(virtual_machine, 'run_command')
+    def test_config_windows_network(self, fake_run_command):
+        """``_config_windows_network`` Runs ``netsh.exe`` to set the IP"""
+        virtual_machine._config_windows_network(vcenter=MagicMock(),
+                                                the_vm=MagicMock(),
+                                                static_ip='1.2.3.4',
+                                                default_gateway='1.2.3.1',
+                                                netmask='255.255.255.0',
+                                                dns=['1.2.3.2'],
+                                                user='someAdminUser',
+                                                password='IloveKatz!',
+                                                logger=MagicMock())
+        the_args, _ = fake_run_command.call_args
+        cmd_ran = the_args[-1]
+        expected = 'C:/Windows/System32/netsh.exe'
+
+        self.assertEqual(cmd_ran, expected)
+
+    @patch.object(virtual_machine, 'run_command')
+    def test_config_windows_network_2_dns(self, fake_run_command):
+        """``_config_windows_network`` Runs ``netsh.exe`` to set the IP"""
+        virtual_machine._config_windows_network(vcenter=MagicMock(),
+                                                the_vm=MagicMock(),
+                                                static_ip='1.2.3.4',
+                                                default_gateway='1.2.3.1',
+                                                netmask='255.255.255.0',
+                                                dns=['1.2.3.2', '1.2.3.3'],
+                                                user='someAdminUser',
+                                                password='IloveKatz!',
+                                                logger=MagicMock())
+
+        self.assertEqual(fake_run_command.call_count, 3)
+
+    @patch.object(virtual_machine, '_upload_nic_config')
+    @patch.object(virtual_machine, '_format_dns')
+    @patch.object(virtual_machine, '_run_cmd')
+    def test_config_centos_network_dns(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
+        """``_config_centos_network`` Adds the ifcfg formatted DNS parts to the config file"""
+        virtual_machine._config_centos_network(vcenter=MagicMock(),
+                                               the_vm=MagicMock(),
+                                               static_ip='1.2.3.4',
+                                               default_gateway='1.2.3.1',
+                                               netmask='255.255.255.0',
+                                               dns=['1.2.3.2', '1.2.3.3'],
+                                               user='someAdminUser',
+                                               password='IloveKatz!',
+                                               logger=MagicMock())
+
+        self.assertTrue(fake_format_dns.called)
+
+    @patch.object(virtual_machine, '_upload_nic_config')
+    @patch.object(virtual_machine, '_format_dns')
+    @patch.object(virtual_machine, '_run_cmd')
+    def test_config_centos_network_upload(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
+        """``_config_centos_network`` Uploads the ifcfg formatted config file to the VM"""
+        virtual_machine._config_centos_network(vcenter=MagicMock(),
+                                               the_vm=MagicMock(),
+                                               static_ip='1.2.3.4',
+                                               default_gateway='1.2.3.1',
+                                               netmask='255.255.255.0',
+                                               dns=['1.2.3.2', '1.2.3.3'],
+                                               user='someAdminUser',
+                                               password='IloveKatz!',
+                                               logger=MagicMock())
+
+        self.assertTrue(fake_upload_nic_config.called)
+
+    @patch.object(virtual_machine, '_upload_nic_config')
+    @patch.object(virtual_machine, '_format_dns')
+    @patch.object(virtual_machine, '_run_cmd')
+    def test_config_centos_network_run_cmd(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
+        """``_config_centos_network`` Runs 3 command to set the network"""
+        virtual_machine._config_centos_network(vcenter=MagicMock(),
+                                               the_vm=MagicMock(),
+                                               static_ip='1.2.3.4',
+                                               default_gateway='1.2.3.1',
+                                               netmask='255.255.255.0',
+                                               dns=['1.2.3.2', '1.2.3.3'],
+                                               user='someAdminUser',
+                                               password='IloveKatz!',
+                                               logger=MagicMock())
+
+        self.assertEqual(fake_run_cmd.call_count, 3)
+
+    @patch.object(virtual_machine, 'run_command')
+    def test_run_cmd(self, fake_run_command):
+        """``_run_cmd`` Executes a shell command with sudo"""
+        virtual_machine._run_cmd(vcenter=MagicMock(),
+                                 the_vm=MagicMock(),
+                                 cmd='/bin/ls',
+                                 args='-la /tmp',
+                                 user='sally',
+                                 password='DogzAreGreat!',
+                                 logger=MagicMock())
+
+        the_args, the_kwargs = fake_run_command.call_args
+        full_command = '{} {}'.format(the_args[-1], the_kwargs['arguments'])
+        expected = "/bin/bash -c '/bin/echo DogzAreGreat! | /bin/sudo -S /bin/ls -la /tmp'"
+
+        self.assertEqual(full_command, expected)
+
+    @patch.object(virtual_machine.requests, 'put')
+    def test_upload_nic_config_http_put(self, fake_put):
+        """``_upload_nic_config`` Uploads the file via the PUT method"""
+        fake_vcenter = MagicMock()
+        fake_the_vm = MagicMock()
+        fake_logger = MagicMock()
+        nic_config = 'TYPE=Ethernet'
+        config_name = 'eth0'
+
+        virtual_machine._upload_nic_config(fake_vcenter, fake_the_vm, nic_config, config_name, 'root', 'a', fake_logger)
+
+        self.assertTrue(fake_put.called)
+
+    @patch.object(virtual_machine.requests, 'put')
+    def test_upload_nic_config_checks_http_status(self, fake_put):
+        """``_upload_nic_config`` Checks the HTTP response status of the upload"""
+        fake_vcenter = MagicMock()
+        fake_the_vm = MagicMock()
+        fake_resp = MagicMock()
+        fake_logger = MagicMock()
+        nic_config = 'TYPE=Ethernet'
+        config_name = 'eth0'
+        fake_put.return_value = fake_resp
+
+        virtual_machine._upload_nic_config(fake_vcenter, fake_the_vm, nic_config, config_name, 'root', 'a', fake_logger)
+
+        self.assertTrue(fake_resp.raise_for_status.called)
+
+    def test_format_dns(self):
+        """``_format_dns`` Can format the DNS section for an ifcfg file for multiple DNS servers"""
+        result = virtual_machine._format_dns(['1.1.1.1', '8.8.8.8'])
+        expected = "DNS1=1.1.1.1\nDNS2=8.8.8.8"
+
+        self.assertEqual(result, expected)
+
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_get_upload_url(self, fake_sleep):
+        """``_get_upload_url`` retries while the VM is booting up"""
+        fake_vm = MagicMock()
+        fake_creds = MagicMock()
+        fake_upload_path = '/home/foo.sh'
+        fake_file_size = 9001
+        fake_file_attributes = MagicMock()
+        fake_vcenter = MagicMock()
+        fake_vcenter.content.guestOperationsManager.fileManager.InitiateFileTransferToGuest.side_effect = [virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           'https://some-url.org']
+        virtual_machine._get_upload_url(fake_vcenter,
+                                        fake_vm,
+                                        fake_creds,
+                                        fake_upload_path,
+                                        fake_file_size,
+                                        fake_file_attributes)
+
+        # one for every vmware.vim.fault.GuestOperationsUnavailable() side_effect
+        self.assertEqual(fake_sleep.call_count, 2)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_get_upload_url(self, fake_sleep):
+        """``_get_upload_url`` Raises ValueError if the VM is never ready for the file upload"""
+        fake_vm = MagicMock()
+        fake_creds = MagicMock()
+        fake_upload_path = '/home/foo.sh'
+        fake_file_size = 9001
+        fake_file_attributes = MagicMock()
+        fake_vcenter = MagicMock()
+        fake_vcenter.content.guestOperationsManager.fileManager.InitiateFileTransferToGuest.side_effect = [virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),
+                                                                                                           virtual_machine.vim.fault.GuestOperationsUnavailable(),]
+
+        with self.assertRaises(ValueError):
+            virtual_machine._get_upload_url(fake_vcenter,
+                                            fake_vm,
+                                            fake_creds,
+                                            fake_upload_path,
+                                            fake_file_size,
+                                            fake_file_attributes)
 
 
 if __name__ == '__main__':

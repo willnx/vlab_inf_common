@@ -5,14 +5,20 @@ Common functions for interacting with Virtual Machines in VMware
 import ssl
 import time
 import random
+import os.path
 import textwrap
+from io import BytesIO
 
 import ujson
 import OpenSSL
+import requests
 from pyVmomi import vim
+from urllib3.exceptions import InsecureRequestWarning
 
 from vlab_inf_common.vmware import consume_task
 from vlab_inf_common.constants import const
+
+requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 
 def power(the_vm, state, timeout=600):
@@ -310,7 +316,7 @@ def get_process_info(vcenter, the_vm, user, password, pid):
             break
     if info is None:
         raise RuntimeError('Timed out trying to lookup info for PID {}'.format(pid))
-    return info                                                                                
+    return info
 
 def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger, power_on=True):
     """Makes the deployment spec and uploads the OVA to create a new Virtual Machine
@@ -482,3 +488,238 @@ def change_network(the_vm, network, adapter_label='Network adapter 1'):
     nicspec.device.connectable.connected = True
     config_spec = vim.vm.ConfigSpec(deviceChange=[nicspec])
     consume_task(the_vm.ReconfigVM_Task(config_spec))
+
+
+def config_static_ip(vcenter, the_vm, static_ip, default_gateway, subnet_mask, dns, user, password, logger, os='centos'):
+    os = os.lower()
+    if os == 'windows':
+        _config_windows_network(vcenter, the_vm, static_ip, default_gateway, subnet_mask, dns, user, password, logger)
+    elif os == 'centos':
+        _config_centos_network(vcenter, the_vm, static_ip, default_gateway, subnet_mask, dns, user, password, logger)
+    else:
+        raise ValueError('Unsupported OS supplied: {}'.format(os))
+
+
+def _config_windows_network(vcenter, the_vm, static_ip, default_gateway, netmask, dns, user, password, logger):
+    """Set a static IP and DNS server on a Windows VM
+
+    :Returns: None
+
+    :param vcenter: The instantiated connection to vCenter
+    :type vcenter: vlab_inf_common.vmware.vCenter
+
+    :param the_vm: The virtual machine to set a static IP on
+    :type the_vm: vim.VirtualMachine
+
+    :param static_ip: The IPv4 address to assign to the VM
+    :type static_ip: String
+
+    :param default_gateway: The IPv4 address of the network gateway
+    :type default_gateway: String
+
+    :param netmask: The subnet mask of the network, i.e. 255.255.255.0
+    :type netmask: String
+
+    :param dns: A list of DNS servers to use
+    :type dns: List
+
+    :param user: The admin user that can configure the network
+    :type user: String
+
+    :param password: The user's password
+    :type password: String
+
+    :param logger: An object for logging messages
+    :type logger: logging.LoggerAdapter
+    """
+    command = 'C:/Windows/System32/netsh.exe'
+    ip_args = 'interface ipv4 set address name=Ethernet0 static {static_ip} {netmask} {default_gateway}'.format(static_ip=static_ip,
+                                                                                                                netmask=netmask,
+                                                                                                                default_gateway=default_gateway)
+    dns_args = 'interface ip set dns name=Ethernet0 static {}'.format(dns[0])
+    dns_args2 = ''
+    if len(dns) > 1:
+        dns_args2 = 'interface ip set dns name=Ethernet0 static {} index=2'.format(dns[1])
+    logger.info('Settings static IP')
+    run_command(vcenter, the_vm, command, user=user, password=password, arguments=ip_args)
+    logger.info("Setting DNS")
+    run_command(vcenter, the_vm, command, user=user, password=password, arguments=dns_args)
+    if dns_args2:
+        logger.info("Setting 2nd DNS server")
+        run_command(vcenter, the_vm, command, user=user, password=password, arguments=dns_args2)
+
+
+def _config_centos_network(vcenter, the_vm, static_ip, default_gateway, netmask, dns, user, password, logger):
+    """Configure the statis network on the VM
+
+    :Returns: None
+
+    :param vcenter: The instantiated connection to vCenter
+    :type vcenter: vlab_inf_common.vmware.vCenter
+
+    :param the_vm: The virtual machine to set a static IP on
+    :type the_vm: vim.VirtualMachine
+
+    :param static_ip: The IPv4 address to assign to the VM
+    :type static_ip: String
+
+    :param default_gateway: The IPv4 address of the network gateway
+    :type default_gateway: String
+
+    :param netmask: The subnet mask of the network, i.e. 255.255.255.0
+    :type netmask: String
+
+    :param dns: A list of DNS servers to use.
+    :type dns: List
+
+    :param user: The admin user that can configure the network
+    :type user: String
+
+    :param password: The user's password
+    :type password: String
+
+    :param logger: An object for logging messages
+    :type logger: logging.LoggerAdapter
+    """
+    nic_config_file = '/etc/sysconfig/network-scripts/ifcfg-eth0'
+    cmd = '/bin/bash'
+    base_args = "-c '/bin/echo {} | /bin/sudo -S {} {}'"
+    config = """\
+    TYPE=Ethernet
+    ONBOOT=yes
+    BOOTPROTO=static
+    DEFROUTE=yes
+    NAME=eth0
+    DEVICE=eth0
+    IPADDR={}
+    GATEWAY={}
+    NETMASK={}
+    """.format(static_ip, default_gateway, netmask)
+    nic_config = '{}\n{}'.format(textwrap.dedent(config), _format_dns(dns))
+    _upload_nic_config(vcenter, the_vm, nic_config, os.path.basename(nic_config_file), user, password, logger)
+    _run_cmd(vcenter, the_vm, '/bin/mv', '-f /tmp/{} {}'.format(os.path.basename(nic_config_file), nic_config_file), user, password, logger)
+    _run_cmd(vcenter, the_vm, '/bin/systemctl', 'restart network', user, password, logger)
+    _run_cmd(vcenter, the_vm, '/bin/hostnamectl', 'set-hostname {}'.format(the_vm.name), user, password, logger)
+
+
+def _run_cmd(vcenter, the_vm, cmd, args, user, password, logger, one_shot=False):
+    """A wrapper to simplify running commands with sudo power"""
+    shell = '/bin/bash'
+    the_args = "-c '/bin/echo {} | /bin/sudo -S {} {}'".format(password, cmd, args)
+    result = run_command(vcenter,
+                         the_vm,
+                         shell,
+                         user=user,
+                         password=password,
+                         arguments=the_args,
+                         timeout=1800,
+                         one_shot=one_shot,
+                         init_timeout=1200)
+    if result.exitCode:
+        logger.error("failed to execute: {} {}".format(shell, the_args))
+
+
+def _upload_nic_config(vcenter, the_vm, nic_config, config_name, user, password, logger):
+    """Upload the NIC config file to the CentOS machine. Works even if the
+    machine has no external network configured.
+
+    :Returns: None
+
+    :param vcenter: The instantiated connection to vCenter
+    :type vcenter: vlab_inf_common.vmware.vCenter
+
+    :param the_vm: The virtual machine to uplaod the network config to
+    :type the_vm: vim.VirtualMachine
+
+    :param nic_config: The network configuration file contents
+    :param nic_config: String
+
+    :param config_name: The name of the config file
+    :type config_name: String
+
+    :param user: The admin user that can configure the network
+    :type user: String
+
+    :param password: The user's password
+    :type password: String
+
+    :param logger: An object for logging messages
+    :type logger: logging.LoggerAdapter
+    """
+    nic_config_bytes = nic_config.encode()
+    file_size = len(nic_config_bytes)
+    logger.debug("Generating creds")
+    creds = vim.vm.guest.NamePasswordAuthentication(username=user,
+                                                     password=password)
+    logger.debug("Creating file attributes object")
+    file_attributes = vim.vm.guest.FileManager.FileAttributes()
+    logger.debug("Obtaining URL for uploading NIC config to new VM")
+    upload_path = '/tmp/{}'.format(config_name)
+    logger.info('Uploading NIC config: %s', upload_path)
+    logger.debug('Uploading %s bytes', file_size)
+    url = _get_upload_url(vcenter=vcenter,
+                          the_vm=the_vm,
+                          creds=creds,
+                          upload_path=upload_path,
+                          file_attributes=file_attributes,
+                          file_size=file_size)
+    logger.info('Uploading to URL %s', url)
+    resp = requests.put(url, data=BytesIO(nic_config_bytes), verify=False)
+    resp.raise_for_status()
+
+
+def _format_dns(dns):
+    """Create the DNS section of the NIC config file.
+
+    :Returns: String
+
+    :param dns: A list of DNS servers to use.
+    :type dns: List
+    """
+    tmp = []
+    for idx, dns_server in enumerate(dns):
+        server_num = idx + 1
+        dns_config = 'DNS{}={}'.format(server_num, dns_server)
+        tmp.append(dns_config)
+    return '\n'.join(tmp)
+
+
+def _get_upload_url(vcenter, the_vm, creds, upload_path, file_size, file_attributes, overwrite=True):
+    """Mostly to deal with race between the VM power on, and all of VMwareTools being ready.
+
+    :Returns: String
+
+    :param vcenter: The instantiated connection to vCenter
+    :type vcenter: vlab_inf_common.vmware.vCenter
+
+    :param the_vm: The virtual machine to upload a file to
+    :type the_vm: vim.VirtualMachine
+
+    :param creds: The username & password to use when logging into the new VM
+    :type creds: vim.vm.guest.NamePasswordAuthentication
+
+    :param file_attributes: BS that pyVmomi requires...
+    :type file_attributes: vim.vm.guest.FileManager.FileAttributes
+
+    :param file_size: How many bytes are going to be uploaded
+    :type file_size: Integer
+
+    :param overwrite: If the file already exists, write over the existing content.
+    :type overwrite: Boolean
+    """
+    # The VM just booted, this service can take some time to be ready
+    for retry_sleep in range(10):
+        try:
+            url = vcenter.content.guestOperationsManager.fileManager.InitiateFileTransferToGuest(vm=the_vm,
+                                                                                                 auth=creds,
+                                                                                                 guestFilePath=upload_path,
+                                                                                                 fileAttributes=file_attributes,
+                                                                                                 fileSize=file_size,
+                                                                                                 overwrite=overwrite)
+        except vim.fault.GuestOperationsUnavailable:
+            time.sleep(retry_sleep)
+        else:
+            return url
+    else:
+        error = 'Unable to file to VM. Timed out waiting on GuestOperations to become available.'
+        raise ValueError(error)
