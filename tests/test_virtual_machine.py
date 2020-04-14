@@ -685,7 +685,7 @@ class TestConfigStaticIP(unittest.TestCase):
                                                password='IloveKatz!',
                                                logger=MagicMock())
 
-        self.assertEqual(fake_run_cmd.call_count, 3)
+        self.assertEqual(fake_run_cmd.call_count, 4)
 
     @patch.object(virtual_machine, 'run_command')
     def test_run_cmd(self, fake_run_command):
