@@ -598,7 +598,7 @@ def _config_centos8_network(vcenter, the_vm, static_ip, default_gateway, netmask
     nic_config = '{}{}\n'.format(textwrap.dedent(config), _format_dns(dns))
     _upload_nic_config(vcenter, the_vm, nic_config, os.path.basename(nic_config_file), user, password, logger)
     _run_cmd(vcenter, the_vm, '/bin/mv', '-f /tmp/{} {}'.format(os.path.basename(nic_config_file), nic_config_file), user, password, logger)
-    _run_cmd(vcenter, the_vm, '/usr/bin/systemctl', 'restart NetworkManager.service')
+    _run_cmd(vcenter, the_vm, '/usr/bin/systemctl', 'restart NetworkManager.service', user, password, logger)
     _run_cmd(vcenter, the_vm, '/usr/bin/nmcli', 'connection down ens192 && /usr/bin/nmcli connection up ens192', user, password, logger)
     _run_cmd(vcenter, the_vm, '/bin/hostnamectl', 'set-hostname {}'.format(the_vm.name), user, password, logger)
 
