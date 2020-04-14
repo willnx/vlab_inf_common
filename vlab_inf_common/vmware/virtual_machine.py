@@ -490,12 +490,12 @@ def change_network(the_vm, network, adapter_label='Network adapter 1'):
     consume_task(the_vm.ReconfigVM_Task(config_spec))
 
 
-def config_static_ip(vcenter, the_vm, static_ip, default_gateway, subnet_mask, dns, user, password, logger, os='centos'):
+def config_static_ip(vcenter, the_vm, static_ip, default_gateway, subnet_mask, dns, user, password, logger, os='centos8'):
     os = os.lower()
     if os == 'windows':
         _config_windows_network(vcenter, the_vm, static_ip, default_gateway, subnet_mask, dns, user, password, logger)
-    elif os == 'centos':
-        _config_centos_network(vcenter, the_vm, static_ip, default_gateway, subnet_mask, dns, user, password, logger)
+    elif os == 'centos8':
+        _config_centos8_network(vcenter, the_vm, static_ip, default_gateway, subnet_mask, dns, user, password, logger)
     else:
         raise ValueError('Unsupported OS supplied: {}'.format(os))
 
@@ -549,8 +549,8 @@ def _config_windows_network(vcenter, the_vm, static_ip, default_gateway, netmask
         run_command(vcenter, the_vm, command, user=user, password=password, arguments=dns_args2)
 
 
-def _config_centos_network(vcenter, the_vm, static_ip, default_gateway, netmask, dns, user, password, logger):
-    """Configure the statis network on the VM
+def _config_centos8_network(vcenter, the_vm, static_ip, default_gateway, netmask, dns, user, password, logger):
+    """Configure the static network on the CentOS 8 VM
 
     :Returns: None
 
@@ -581,7 +581,7 @@ def _config_centos_network(vcenter, the_vm, static_ip, default_gateway, netmask,
     :param logger: An object for logging messages
     :type logger: logging.LoggerAdapter
     """
-    nic_config_file = '/etc/sysconfig/network-scripts/ifcfg-eth0'
+    nic_config_file = '/etc/sysconfig/network-scripts/ifcfg-ens192'
     cmd = '/bin/bash'
     base_args = "-c '/bin/echo {} | /bin/sudo -S {} {}'"
     config = """\
@@ -589,16 +589,16 @@ def _config_centos_network(vcenter, the_vm, static_ip, default_gateway, netmask,
     ONBOOT=yes
     BOOTPROTO=static
     DEFROUTE=yes
-    NAME=eth0
-    DEVICE=eth0
+    NAME=ens192
+    DEVICE=ens192
     IPADDR={}
     GATEWAY={}
     NETMASK={}
     """.format(static_ip, default_gateway, netmask)
-    nic_config = '{}\n{}'.format(textwrap.dedent(config), _format_dns(dns))
+    nic_config = '{}{}'.format(textwrap.dedent(config), _format_dns(dns))
     _upload_nic_config(vcenter, the_vm, nic_config, os.path.basename(nic_config_file), user, password, logger)
     _run_cmd(vcenter, the_vm, '/bin/mv', '-f /tmp/{} {}'.format(os.path.basename(nic_config_file), nic_config_file), user, password, logger)
-    _run_cmd(vcenter, the_vm, '/bin/systemctl', 'restart network', user, password, logger)
+    _run_cmd(vcenter, the_vm, '/usr/bin/nmcli', 'connection down ens192 && /usr/bin/nmcli connection up ens192', user, password, logger)
     _run_cmd(vcenter, the_vm, '/bin/hostnamectl', 'set-hostname {}'.format(the_vm.name), user, password, logger)
 
 
