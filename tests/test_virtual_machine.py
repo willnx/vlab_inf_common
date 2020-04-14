@@ -573,8 +573,8 @@ class TestConfigStaticIP(unittest.TestCase):
 
         self.assertTrue(fake_config_windows_network.called)
 
-    @patch.object(virtual_machine, '_config_centos_network')
-    def test_centos(self, fake_config_centos_network):
+    @patch.object(virtual_machine, '_config_centos8_network')
+    def test_centos8(self, fake_config_centos8_network):
         """``config_static_ip`` support CentOS operating system"""
         virtual_machine.config_static_ip(vcenter=MagicMock(),
                                          the_vm=MagicMock(),
@@ -585,9 +585,9 @@ class TestConfigStaticIP(unittest.TestCase):
                                          user='someAdminUser',
                                          password='IloveKatz!',
                                          logger=MagicMock(),
-                                         os='centos')
+                                         os='centos8')
 
-        self.assertTrue(fake_config_centos_network.called)
+        self.assertTrue(fake_config_centos8_network.called)
 
     def test_unsupports_os(self):
         """``config_static_ip`` raises ValueError when supplied with an unsupported OS"""
@@ -639,9 +639,9 @@ class TestConfigStaticIP(unittest.TestCase):
     @patch.object(virtual_machine, '_upload_nic_config')
     @patch.object(virtual_machine, '_format_dns')
     @patch.object(virtual_machine, '_run_cmd')
-    def test_config_centos_network_dns(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
-        """``_config_centos_network`` Adds the ifcfg formatted DNS parts to the config file"""
-        virtual_machine._config_centos_network(vcenter=MagicMock(),
+    def test_config_centos8_network_dns(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
+        """``_config_centos8_network`` Adds the ifcfg formatted DNS parts to the config file"""
+        virtual_machine._config_centos8_network(vcenter=MagicMock(),
                                                the_vm=MagicMock(),
                                                static_ip='1.2.3.4',
                                                default_gateway='1.2.3.1',
@@ -656,9 +656,9 @@ class TestConfigStaticIP(unittest.TestCase):
     @patch.object(virtual_machine, '_upload_nic_config')
     @patch.object(virtual_machine, '_format_dns')
     @patch.object(virtual_machine, '_run_cmd')
-    def test_config_centos_network_upload(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
-        """``_config_centos_network`` Uploads the ifcfg formatted config file to the VM"""
-        virtual_machine._config_centos_network(vcenter=MagicMock(),
+    def test_config_centos8_network_upload(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
+        """``_config_centos8_network`` Uploads the ifcfg formatted config file to the VM"""
+        virtual_machine._config_centos8_network(vcenter=MagicMock(),
                                                the_vm=MagicMock(),
                                                static_ip='1.2.3.4',
                                                default_gateway='1.2.3.1',
@@ -673,9 +673,9 @@ class TestConfigStaticIP(unittest.TestCase):
     @patch.object(virtual_machine, '_upload_nic_config')
     @patch.object(virtual_machine, '_format_dns')
     @patch.object(virtual_machine, '_run_cmd')
-    def test_config_centos_network_run_cmd(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
-        """``_config_centos_network`` Runs 3 command to set the network"""
-        virtual_machine._config_centos_network(vcenter=MagicMock(),
+    def test_config_centos8_network_run_cmd(self, fake_run_cmd, fake_format_dns, fake_upload_nic_config):
+        """``_config_centos8_network`` Runs 3 command to set the network"""
+        virtual_machine._config_centos8_network(vcenter=MagicMock(),
                                                the_vm=MagicMock(),
                                                static_ip='1.2.3.4',
                                                default_gateway='1.2.3.1',
