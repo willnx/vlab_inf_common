@@ -254,9 +254,21 @@ class TestVirtualMachine(unittest.TestCase):
     def test_power_reset(self):
         """``virtual_machine`` - power can reboot a VM"""
         vm = MagicMock()
-        vm.runtime.powerState = 'poweredOff'
+        vm.runtime.powerState = 'poweredOn'
         vm.ResetVM_Task.return_value.info.completeTime = 1234
         vm.ResetVM_Task.return_value.info.error = None
+
+        result = virtual_machine.power(vm, state='restart')
+        expected = True
+
+        self.assertEqual(result, expected)
+
+    def test_power_reset_while_off(self):
+        """``virtual_machine`` - power can restart a powered off VM"""
+        vm = MagicMock()
+        vm.runtime.powerState = 'poweredOff'
+        vm.PowerOn.return_value.info.completeTime = 1234
+        vm.PowerOn.return_value.info.error = None
 
         result = virtual_machine.power(vm, state='restart')
         expected = True
@@ -267,7 +279,7 @@ class TestVirtualMachine(unittest.TestCase):
     def test_power_timeout(self, fake_sleep):
         """``virtual_machine`` - power returns false if the task timesout"""
         vm = MagicMock()
-        vm.runtime.powerState = 'poweredOff'
+        vm.runtime.powerState = 'poweredOn'
         vm.ResetVM_Task.return_value.info.completeTime = None
 
         result = virtual_machine.power(vm, state='restart')

@@ -33,7 +33,7 @@ def power(the_vm, state, timeout=600):
     :param the_vm: The pyVmomi Virtual machine object
     :type the_vm: vim.VirtualMachine
 
-    :param state: The power state to put the VM into. Valid values are "on" "off" and "reset"
+    :param state: The power state to put the VM into. Valid values are "on" "off" and "restart"
     :type state: Enum/String
 
     :param timeout: Optional - How long (in milliseconds) to block waiting on a given power state
@@ -44,9 +44,10 @@ def power(the_vm, state, timeout=600):
         error = 'state must be one of {}, supplied {}'.format(valid_states, state)
         raise ValueError(error)
 
-    if the_vm.runtime.powerState.lower().replace('powered', '') == state:
+    vm_power_state = the_vm.runtime.powerState.lower().replace('powered', '')
+    if vm_power_state == state:
         return True
-    elif state == 'on':
+    elif (state == 'on') or (vm_power_state == 'off' and state == 'restart'):
         task = the_vm.PowerOn()
     elif state == 'off':
         task = the_vm.PowerOff()
