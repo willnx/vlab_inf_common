@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 from pyVmomi import vim
 
 from vlab_inf_common.vmware import virtual_machine
+from vlab_inf_common.vmware.exceptions import DeployFailure
 
 
 class TestVirtualMachine(unittest.TestCase):
@@ -478,14 +479,14 @@ class TestVirtualMachine(unittest.TestCase):
 
     @patch.object(virtual_machine, 'time') # so test runs faster
     def test_get_lease_timeout(self, fake_time):
-        """``virtual_machine`` - _get_lease raises ValueError upon error"""
+        """``virtual_machine`` - _get_lease raises DeployFailure upon error"""
         fake_lease = MagicMock()
         fake_lease.error = None
         fake_lease.state = 'not ready'
         fake_resource_pool = MagicMock()
         fake_resource_pool.ImportVApp.return_value = fake_lease
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(DeployFailure):
             virtual_machine._get_lease(resource_pool=fake_resource_pool,
                                        import_spec=MagicMock(),
                                        folder=MagicMock(),

@@ -250,7 +250,9 @@ class WebHandle(object):
         self.url = url
         r = urlopen(url)
         if r.code != 200:
-            raise FileNotFoundError(url)
+            version = os.path.splitext(os.path.basename(url))[0]
+            error = 'Unknown version supplied: {}'.format(version)
+            raise FileNotFoundError(error)
         self.headers = self._headers_to_dict(r)
         if 'accept-ranges' not in self.headers:
             err = "Server hosting remote OVA file does not support 'Accept-Ranges' HTTP header"
