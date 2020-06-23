@@ -17,6 +17,7 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from vlab_inf_common.vmware import consume_task
 from vlab_inf_common.constants import const
+from vlab_inf_common.vmware.exceptions import DeployFailure
 
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
@@ -398,18 +399,19 @@ def _get_lease(resource_pool, import_spec, folder, host):
     :param host: The ESXi host to upload the OVA to
     :type host: vim.HostSystem
     """
+    timeout = 300
     lease = resource_pool.ImportVApp(import_spec, folder=folder, host=host)
-    for _ in range(30):
+    for _ in range(timeout):
         if lease.error:
             error = lease.error.msg
-            raise ValueError(error)
+            raise DeployFailure(error)
         elif lease.state != 'ready':
             time.sleep(1)
         else:
             break
     else:
-        error = 'Lease never because usable'
-        raise RuntimeError(error)
+        error = 'Deploy lease not usable after {} seconds'.format(timeout)
+        raise DeployFailure(error)
     return lease
 
 
