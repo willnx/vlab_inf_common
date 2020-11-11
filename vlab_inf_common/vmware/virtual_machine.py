@@ -893,10 +893,10 @@ def make_ova(vcenter, the_vm, template_dir, log):
         for device in lease.info.deviceUrl:
             device_ovf = download_vmdk(save_location, vcenter.cookie(), device, log)
             device_ovfs.extend(device_ovf)
-        vm_ovf_xml = get_vm_ovf_xml(the_vm, device_ovfs, vcenter)
-        ovf_xml_file = os.path.join(save_location, the_vm.name, '.ovf')
-        with open(ovf_xml_file, 'w') as the_file:
-            the_file.write(vm_ovf_xml)
+    vm_ovf_xml = get_vm_ovf_xml(the_vm, device_ovfs, vcenter)
+    ovf_xml_file = os.path.join(save_location, the_vm.name, '.ovf')
+    with open(ovf_xml_file, 'w') as the_file:
+        the_file.write(vm_ovf_xml)
     # Convert to OVA
     ova_name = '{}.ova'.format(the_vm.name)
     ova = tarfile.open(ova_name)
