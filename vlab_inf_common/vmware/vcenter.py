@@ -285,6 +285,17 @@ class vCenter(object):
         """
         return self._conn.content.ovfManager
 
+    def cookie(self):
+        """Obtain the cookie used to validate/authorize the connection to vCenter.
+
+        :Returns: Dictionary
+        """
+        soap_cookie = self._conn._stub.cookie.split(';')[0]
+        name, value = soap_cookie.split('=')
+        value = value.replace('"', '') # the cookie value is surrounded by quotas.
+        return {name: value}
+
+
     def __enter__(self):
         return self
 

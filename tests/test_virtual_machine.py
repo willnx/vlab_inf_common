@@ -803,6 +803,304 @@ class TestConfigStaticIP(unittest.TestCase):
                                             fake_file_size,
                                             fake_file_attributes)
 
+class TestVMExportFunctions(unittest.TestCase):
+    """A suite of test cases for functions used to create an OVA from an virtual machine"""
+
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.requests, 'get')
+    def test_download_vmdk(self, fake_get, fake_open):
+        """``download_vmdk`` - Returns a list with a vim.OvfManager.OvfFile object when everything works as expected"""
+        fake_log = MagicMock()
+        fake_device = MagicMock()
+        fake_device.targetId = 'foo.vmdk'
+        fake_device.key = 'someKey'
+        fake_resp = MagicMock()
+        fake_resp.iter_content.return_value = [b'some', b'data']
+        fake_get.return_value = fake_resp
+        save_location = '/tmp'
+        http_cookies = {}
+
+        output = virtual_machine.download_vmdk(save_location, http_cookies, fake_device, fake_log)
+
+        self.assertEqual(1, len(output))
+        self.assertTrue(isinstance(output[0], virtual_machine.vim.OvfManager.OvfFile))
+
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.requests, 'get')
+    def test_download_vmdk_error(self, fake_get, fake_open):
+        """``download_vmdk`` - Returns an empty list if the device is not a VMDK"""
+        fake_log = MagicMock()
+        fake_device = MagicMock()
+        fake_device.targetId = ''
+        fake_device.disk = False
+        fake_device.key = 'someKey'
+        fake_resp = MagicMock()
+        fake_resp.iter_content.return_value = [b'some', b'data']
+        fake_get.return_value = fake_resp
+        save_location = '/tmp'
+        http_cookies = {}
+
+        output = virtual_machine.download_vmdk(save_location, http_cookies, fake_device, fake_log)
+
+        self.assertEqual(0, len(output))
+
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.requests, 'get')
+    def test_download_vmdk_skips_keepalive_blocks(self, fake_get, fake_open):
+        """``download_vmdk`` - Does not write empty blocks as the result of HTTP keepalives"""
+        fake_log = MagicMock()
+        fake_device = MagicMock()
+        fake_device.targetId = 'foo.vmdk'
+        fake_device.key = 'someKey'
+        fake_resp = MagicMock()
+        fake_resp.iter_content.return_value = [b'some', b'', b'data']
+        fake_get.return_value = fake_resp
+        save_location = '/tmp'
+        http_cookies = {}
+
+        virtual_machine.download_vmdk(save_location, http_cookies, fake_device, fake_log)
+        write_count = fake_open.return_value.__enter__.return_value.write.call_count
+        expected = 2
+
+        self.assertEqual(write_count, expected)
+
+    @patch.object(virtual_machine.vim.OvfManager, 'CreateDescriptorParams')
+    def test_get_vm_ovf_xml(self, fake_CreateDescriptorParams):
+        """``get_vm_ovf_xml`` returns a string when everything works as expected"""
+        fake_vm_ovf = MagicMock()
+        fake_vm_ovf.error = []
+        fake_vm_ovf.ovfDescriptor = '<some>xml</some>'
+        fake_vcenter = MagicMock()
+        fake_vcenter.content.ovfManager.CreateDescriptor.return_value = fake_vm_ovf
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_device_ovfs = [MagicMock(), MagicMock()]
+
+        output = virtual_machine.get_vm_ovf_xml(fake_vm, fake_device_ovfs, fake_vcenter)
+        expected = fake_vm_ovf.ovfDescriptor
+
+        self.assertEqual(output, expected)
+
+    @patch.object(virtual_machine.vim.OvfManager, 'CreateDescriptorParams')
+    def test_get_vm_ovf_xml_error(self, fake_CreateDescriptorParams):
+        """``get_vm_ovf_xml`` Raises an exception when unable to create the OVF xml"""
+        fake_vm_ovf = MagicMock()
+        fake_error = MagicMock()
+        fake_error.fault = RuntimeError("testing")
+        fake_vm_ovf.error = [fake_error]
+        fake_vm_ovf.ovfDescriptor = '<some>xml</some>'
+        fake_vcenter = MagicMock()
+        fake_vcenter.content.ovfManager.CreateDescriptor.return_value = fake_vm_ovf
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_device_ovfs = [MagicMock(), MagicMock()]
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine.get_vm_ovf_xml(fake_vm, fake_device_ovfs, fake_vcenter)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_progress_chimer(self, fake_sleep):
+        """``ProgressChimer`` - Thread starts upon creation."""
+        fake_lease = MagicMock()
+        fake_log = MagicMock()
+        chimer = virtual_machine.ProgressChimer(fake_lease, fake_log)
+
+        self.assertTrue(chimer.isAlive())
+        chimer.complete()
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_progress_chimer_completes(self, fake_sleep):
+        """``ProgressChimer`` - 'complete' blocks until the thread terminates"""
+        fake_lease = MagicMock()
+        fake_log = MagicMock()
+        chimer = virtual_machine.ProgressChimer(fake_lease, fake_log)
+
+        chimer.complete()
+
+        self.assertFalse(chimer.isAlive())
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_progress_chimer_with_statement(self, fake_sleep):
+        """``ProgressChimer`` - support auto start/stop in a 'with' statement"""
+        fake_lease = MagicMock()
+        fake_log = MagicMock()
+
+        with virtual_machine.ProgressChimer(fake_lease, fake_log) as chimer:
+            self.assertTrue(chimer.isAlive())
+        self.assertFalse(chimer.isAlive())
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_progress_chimer_lease_complete(self, fake_sleep):
+        """``ProgressChimer`` - complete terminates the NFC lease"""
+        fake_lease = MagicMock()
+        fake_log = MagicMock()
+        chimer = virtual_machine.ProgressChimer(fake_lease, fake_log)
+        chimer.complete()
+
+        self.assertTrue(chimer._lease.HttpNfcLeaseComplete.called)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_block_on_lease(self, fake_sleep):
+        """``_block_on_lease`` - waits for the NFS lease to be ready"""
+        fake_lease = MagicMock()
+        fake_lease.state = virtual_machine.vim.HttpNfcLease.State.ready
+
+        virtual_machine._block_on_lease(fake_lease)
+
+        self.assertFalse(fake_sleep.called)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_block_on_lease_blocks(self, fake_sleep):
+        """``_block_on_lease`` - blocks until the NFS lease is ready"""
+        fake_lease = MagicMock()
+        type(fake_lease).state = PropertyMock(side_effect=['', virtual_machine.vim.HttpNfcLease.State.ready, virtual_machine.vim.HttpNfcLease.State.ready])
+
+        virtual_machine._block_on_lease(fake_lease)
+
+        self.assertEqual(fake_sleep.call_count, 1)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_block_on_lease_error(self, fake_sleep):
+        """``_block_on_lease`` - Raises RuntimeError if the lease state is an error"""
+        fake_lease = MagicMock()
+        fake_lease.state = virtual_machine.vim.HttpNfcLease.State.error
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine._block_on_lease(fake_lease)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_block_on_lease_never_ready(self, fake_sleep):
+        """``_block_on_lease`` - raises RuntimeError if the lease is never ready or an error"""
+        fake_lease = MagicMock()
+        fake_lease.state = 'foo'
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine._block_on_lease(fake_lease)
+
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_block_on_lease_never_ready(self, fake_sleep):
+        """``_block_on_lease`` - raises RuntimeError if the lease is never ready or an error"""
+        fake_lease = MagicMock()
+        fake_lease.state = 'foo'
+
+        try:
+            virtual_machine._block_on_lease(fake_lease)
+        except RuntimeError:
+            pass
+
+        sleep_call_count = fake_sleep.call_count
+        expected_call_count = 45
+        slept_for = sum([x[0][0] for x in fake_sleep.call_args_list])
+        expected_slept_for = 990 # seconds
+
+        self.assertEqual(sleep_call_count, expected_call_count)
+        self.assertEqual(slept_for, expected_slept_for)
+
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_block_on_lease')
+    @patch.object(virtual_machine, 'get_vm_ovf_xml')
+    @patch.object(virtual_machine, 'download_vmdk')
+    @patch.object(virtual_machine, 'tarfile')
+    @patch.object(virtual_machine.os, 'makedirs')
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.os, 'rename')
+    @patch.object(virtual_machine.os, 'listdir')
+    @patch.object(virtual_machine.shutil, 'rmtree')
+    def test_make_ova(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
+        fake_sleep, fake_makedirs, fake_tarfile, fake_downlaod_vmdk, fake_get_vm_ovf_xml,
+        fake_block_on_lease, fake_power):
+        """``make_ova`` - Returns the location of the new OVA file"""
+        fake_vcenter = MagicMock()
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_log = MagicMock()
+
+        output = virtual_machine.make_ova(fake_vcenter, fake_vm, '/save/ova/here', fake_log)
+        expected = '/save/ova/here/myVM.ova'
+
+        self.assertEqual(output, expected)
+
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_block_on_lease')
+    @patch.object(virtual_machine, 'get_vm_ovf_xml')
+    @patch.object(virtual_machine, 'download_vmdk')
+    @patch.object(virtual_machine, 'tarfile')
+    @patch.object(virtual_machine.os, 'makedirs')
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.os, 'rename')
+    @patch.object(virtual_machine.os, 'listdir')
+    @patch.object(virtual_machine.shutil, 'rmtree')
+    def test_make_ova_downloads_all_vmdks(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
+        fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
+        fake_block_on_lease, fake_power):
+        """``make_ova`` - Downloads all the VMDKs of a virtual machine"""
+        fake_vcenter = MagicMock()
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_vm.ExportVm.return_value.info.deviceUrl = ['https://foo.com', 'https://bar.com']
+        fake_log = MagicMock()
+
+        virtual_machine.make_ova(fake_vcenter, fake_vm, '/save/ova/here', fake_log)
+        vmdks_downloaded = fake_download_vmdk.call_count
+        expected = 2
+
+        self.assertEqual(vmdks_downloaded, expected)
+
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_block_on_lease')
+    @patch.object(virtual_machine, 'get_vm_ovf_xml')
+    @patch.object(virtual_machine, 'download_vmdk')
+    @patch.object(virtual_machine, 'tarfile')
+    @patch.object(virtual_machine.os, 'makedirs')
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.os, 'rename')
+    @patch.object(virtual_machine.os, 'listdir')
+    @patch.object(virtual_machine.shutil, 'rmtree')
+    def test_make_ova_adds_all_files(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
+        fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
+        fake_block_on_lease, fake_power):
+        """``make_ova`` - adds all files to the OVA"""
+        fake_vcenter = MagicMock()
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_log = MagicMock()
+        fake_listdir.return_value = ['myVM.ovf', 'disk-0.vmdk']
+
+        virtual_machine.make_ova(fake_vcenter, fake_vm, '/save/ova/here', fake_log)
+        files_added_to_ova = fake_tarfile.open.return_value.add.call_count
+        expected = 2
+
+        self.assertEqual(files_added_to_ova, expected)
+
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_block_on_lease')
+    @patch.object(virtual_machine, 'get_vm_ovf_xml')
+    @patch.object(virtual_machine, 'download_vmdk')
+    @patch.object(virtual_machine, 'tarfile')
+    @patch.object(virtual_machine.os, 'makedirs')
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.os, 'rename')
+    @patch.object(virtual_machine.os, 'listdir')
+    @patch.object(virtual_machine.shutil, 'rmtree')
+    def test_make_ova_powers_off_vm(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
+        fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
+        fake_block_on_lease, fake_power):
+        """``make_ova`` - Powers off the VM to create the export"""
+        fake_vcenter = MagicMock()
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_log = MagicMock()
+
+        virtual_machine.make_ova(fake_vcenter, fake_vm, '/save/ova/here', fake_log)
+        the_args, _ = fake_power.call_args
+        expected  = (fake_vm, 'off')
+
+        self.assertEqual(the_args, expected)
+
 
 if __name__ == '__main__':
     unittest.main()

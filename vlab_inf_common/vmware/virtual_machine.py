@@ -4,9 +4,12 @@ Common functions for interacting with Virtual Machines in VMware
 """
 import ssl
 import time
+import shutil
 import random
 import os.path
+import tarfile
 import textwrap
+import threading
 from io import BytesIO
 
 import ujson
@@ -15,8 +18,8 @@ import requests
 from pyVmomi import vim
 from urllib3.exceptions import InsecureRequestWarning
 
-from vlab_inf_common.vmware import consume_task
 from vlab_inf_common.constants import const
+from vlab_inf_common.vmware.tasks import consume_task
 from vlab_inf_common.vmware.exceptions import DeployFailure
 
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
@@ -727,3 +730,180 @@ def _get_upload_url(vcenter, the_vm, creds, upload_path, file_size, file_attribu
     else:
         error = 'Unable to file to VM. Timed out waiting on GuestOperations to become available.'
         raise ValueError(error)
+
+
+def download_vmdk(save_location, http_cookies, device, log):
+    """Copy the VMDK of a virtual machine to the local filesystem.
+
+    The returned list will be either empty (falsy), or contain an OVF object for
+    the VMDK. Because the caller must construct a list of OVF objects for *all*
+    devices in a VM, just extend the list in your code with what this function
+    returns.
+
+    :Returns: List
+
+    :param save_location: The directory to save the VMDK file to.
+    :type save_location: String
+
+    :param http_cookies: The vCenter SOAP auth cookie(s) to use.
+    :type http_cookies: Dictionary
+
+    :param device: A component of the virtual machine to download.
+    :type device: vim.HttpNfcLease.DeviceUrl
+
+    :param log: An object for writing debug/progress messages.
+    :type log: logging.Logger
+    """
+    vmdk_obj = []
+    if not (device.disk and device.taretId):
+        log.error("Device is not a VMDK: %s", device.url)
+    else:
+        vmdk_file = os.path.join(save_location, device.targetId)
+        with open(vmdk_file, 'wb') as the_file:
+            resp = requests.get(device.url,
+                                stream=True,
+                                headers={'Accept': 'application/x-vnd.vmware-streamVmdk'},
+                                cookies=http_cookies,
+                                verify=False)
+            resp.raise_for_status()
+            bytes_written = 0
+            for block in resp.iter_content(chunk_size=20480):
+                if block:
+                    # filter out keep-alive chunks
+                    the_file.write(block)
+                    bytes_written += len(block)
+        # Create the OVF object; needed to create the correct XML for the whole machine
+        ovf_file = vim.OvfManager.OvfFile()
+        ovf_file.deviceId = device.key
+        ovf_file.path = device.targetId
+        ovf_file.size = bytes_written
+        vmdk_obj.append(ovf_file)
+    return vmdk_obj
+
+
+def get_vm_ovf_xml(vm, device_ovfs, vcenter):
+    """Obtain the XML that defines a virtual machine's OVF.
+
+    :Returns: String (xml)
+
+    :param vm: The virtual machine object to obtain the OVF XML for.
+    :type vm: vim.VirtualMachine
+
+    :param device_ovfs: The device-specific OVFs of the virtual machine (vm).
+    :type device_ovfs: List
+
+    :param vcenter: A valid connection to a vCenter server.
+    :type vcenter: vlab_inf_common.vmware.vCenter
+    """
+    ovf_params = vim.OvfManager.CreateDescriptorParams()
+    ovf_params.name = vm.name
+    ovf_params.ovfFiles = device_ovfs
+    vm_ovf = vcenter.content.ovfManager.CreateDescriptor(obj=vm, cdp=ovf_params)
+    if vm_ovf.error:
+        raise vm_ovf.error[0].fault
+    return vm_ovf.ovfDescriptor
+
+
+class ProgressChimer(threading.Thread):
+    """Keeps the lease alive while downloading a VMDK from vSphere.
+
+    Using in a ``with`` statement ensures the lease is closed, and makes your code
+    cleaner!
+
+    :param lease: Required to export a VM to an OVA.
+    :type lease: vim.HttpNfcLease
+
+    :param log: An object for writing debug/progress messages.
+    :type log: logging.Logger
+
+    :param update_interval: How often renew/update the lease, in seconds.
+    :type update_interval: Integer
+    """
+    def __init__(self, lease, log, update_interval=10):
+        super().__init__()
+        self._lease = lease
+        self._keep_running = True
+        self._update_interval = update_interval
+        self.start()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exce_type, exec_value, exce_traceback):
+        self.complete()
+
+    def complete(self):
+        self._lease.HttpNfcLeaseProgress(100)
+        self._lease.HttpNfcLeaseComplete()
+        self._keep_running = False
+        self.join()
+
+    def run(self):
+        while self._keep_running:
+            self._lease.HttpNfcLeaseProgress(50)
+            time.sleep(self._update_interval)
+
+
+def _block_on_lease(lease):
+    """Blocks execution until the lease is usable or fails
+
+    :Returns: None
+
+    :param lease: Required to export a VM to an OVA.
+    :type lease: vim.HttpNfcLease
+    """
+    # this amounts to waiting upwards of 990 seconds, with linear backoff
+    for i in range(45):
+        if lease.state == vim.HttpNfcLease.State.ready:
+            break
+        elif lease.state == vim.HttpNfcLease.State.error:
+            raise RuntimeError("VM Export lease error: {}".format(lease.state.error))
+        else:
+            time.sleep(i)
+    else:
+        raise RuntimeError("Lease never became ready")
+
+
+def make_ova(vcenter, the_vm, template_dir, log):
+    """Export a virtual machine into an OVA. The returned string is the location
+    of the new OVA file.
+
+    :Returns: String
+
+    :param vcenter: The instantiated connection to vCenter
+    :type vcenter: vlab_inf_common.vmware.vCenter
+
+    :param the_vm: The name of the VM
+    :type the_vm: String
+
+    :param template_dir: The folder to save the new OVA to.
+    :type template_dir: String
+
+    :param log: A message for writing progress/debug messages.
+    :type log: logging.Logger
+    """
+    ova_location = ''
+    power(the_vm, 'off')
+    lease = the_vm.ExportVm()
+    _block_on_lease(lease)
+    with ProgressChimer(lease, log):
+        save_location = os.path.join(template_dir, the_vm.name)
+        os.makedirs(save_location, exists_ok=True)
+        device_ovfs = []
+        for device in lease.info.deviceUrl:
+            device_ovf = download_vmdk(save_location, vcenter.cookie(), device, log)
+            device_ovfs.extend(device_ovf)
+    vm_ovf_xml = get_vm_ovf_xml(the_vm, device_ovfs, vcenter)
+    ovf_xml_file = os.path.join(save_location, the_vm.name, '.ovf')
+    with open(ovf_xml_file, 'w') as the_file:
+        the_file.write(vm_ovf_xml)
+    # Convert to OVA
+    ova_name = '{}.ova'.format(the_vm.name)
+    ova = tarfile.open(ova_name)
+    for ova_file in os.listdir(save_location):
+        ova.add(ova_file, arcname=os.path.basename(ova_file))
+    ova.close()
+    ova_location = os.path.join(template_dir, ova_name)
+    os.rename(ova_name, ova_location)
+    shutil.rmtree(save_location)
+    return ova_location
