@@ -996,6 +996,7 @@ class TestVMExportFunctions(unittest.TestCase):
         self.assertEqual(sleep_call_count, expected_call_count)
         self.assertEqual(slept_for, expected_slept_for)
 
+    @patch.object(virtual_machine, 'power')
     @patch.object(virtual_machine, '_block_on_lease')
     @patch.object(virtual_machine, 'get_vm_ovf_xml')
     @patch.object(virtual_machine, 'download_vmdk')
@@ -1008,7 +1009,7 @@ class TestVMExportFunctions(unittest.TestCase):
     @patch.object(virtual_machine.shutil, 'rmtree')
     def test_make_ova(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
         fake_sleep, fake_makedirs, fake_tarfile, fake_downlaod_vmdk, fake_get_vm_ovf_xml,
-        fake_block_on_lease):
+        fake_block_on_lease, fake_power):
         """``make_ova`` - Returns the location of the new OVA file"""
         fake_vcenter = MagicMock()
         fake_vm = MagicMock()
@@ -1020,6 +1021,7 @@ class TestVMExportFunctions(unittest.TestCase):
 
         self.assertEqual(output, expected)
 
+    @patch.object(virtual_machine, 'power')
     @patch.object(virtual_machine, '_block_on_lease')
     @patch.object(virtual_machine, 'get_vm_ovf_xml')
     @patch.object(virtual_machine, 'download_vmdk')
@@ -1032,7 +1034,7 @@ class TestVMExportFunctions(unittest.TestCase):
     @patch.object(virtual_machine.shutil, 'rmtree')
     def test_make_ova_downloads_all_vmdks(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
         fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
-        fake_block_on_lease):
+        fake_block_on_lease, fake_power):
         """``make_ova`` - Downloads all the VMDKs of a virtual machine"""
         fake_vcenter = MagicMock()
         fake_vm = MagicMock()
@@ -1046,6 +1048,7 @@ class TestVMExportFunctions(unittest.TestCase):
 
         self.assertEqual(vmdks_downloaded, expected)
 
+    @patch.object(virtual_machine, 'power')
     @patch.object(virtual_machine, '_block_on_lease')
     @patch.object(virtual_machine, 'get_vm_ovf_xml')
     @patch.object(virtual_machine, 'download_vmdk')
@@ -1058,7 +1061,7 @@ class TestVMExportFunctions(unittest.TestCase):
     @patch.object(virtual_machine.shutil, 'rmtree')
     def test_make_ova_adds_all_files(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
         fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
-        fake_block_on_lease):
+        fake_block_on_lease, fake_power):
         """``make_ova`` - adds all files to the OVA"""
         fake_vcenter = MagicMock()
         fake_vm = MagicMock()
@@ -1071,6 +1074,32 @@ class TestVMExportFunctions(unittest.TestCase):
         expected = 2
 
         self.assertEqual(files_added_to_ova, expected)
+
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_block_on_lease')
+    @patch.object(virtual_machine, 'get_vm_ovf_xml')
+    @patch.object(virtual_machine, 'download_vmdk')
+    @patch.object(virtual_machine, 'tarfile')
+    @patch.object(virtual_machine.os, 'makedirs')
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.os, 'rename')
+    @patch.object(virtual_machine.os, 'listdir')
+    @patch.object(virtual_machine.shutil, 'rmtree')
+    def test_make_ova_powers_off_vm(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
+        fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
+        fake_block_on_lease, fake_power):
+        """``make_ova`` - Powers off the VM to create the export"""
+        fake_vcenter = MagicMock()
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_log = MagicMock()
+
+        virtual_machine.make_ova(fake_vcenter, fake_vm, '/save/ova/here', fake_log)
+        the_args, _ = fake_power.call_args
+        expected  = (fake_vm, 'off')
+
+        self.assertEqual(the_args, expected)
 
 
 if __name__ == '__main__':

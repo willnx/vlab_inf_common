@@ -883,6 +883,7 @@ def make_ova(vcenter, the_vm, template_dir, log):
     :type log: logging.Logger
     """
     ova_location = ''
+    power(the_vm, 'off')
     lease = the_vm.ExportVm()
     _block_on_lease(lease)
     with ProgressChimer(lease, log):
