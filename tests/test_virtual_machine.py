@@ -1101,6 +1101,56 @@ class TestVMExportFunctions(unittest.TestCase):
 
         self.assertEqual(the_args, expected)
 
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_block_on_lease')
+    @patch.object(virtual_machine, 'get_vm_ovf_xml')
+    @patch.object(virtual_machine, 'download_vmdk')
+    @patch.object(virtual_machine, 'tarfile')
+    @patch.object(virtual_machine.os, 'makedirs')
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.os, 'rename')
+    @patch.object(virtual_machine.os, 'listdir')
+    @patch.object(virtual_machine.shutil, 'rmtree')
+    def test_make_ova_provide_name(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
+        fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
+        fake_block_on_lease, fake_power):
+        """``make_ova`` - Allows the caller to define the name of the OVA file."""
+        fake_vcenter = MagicMock()
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_log = MagicMock()
+
+        output = virtual_machine.make_ova(fake_vcenter, fake_vm, '/save/ova/here', fake_log, ova_name='vm01.ova')
+        expected = '/save/ova/here/vm01.ova'
+
+        self.assertEqual(output, expected)
+
+    @patch.object(virtual_machine, 'power')
+    @patch.object(virtual_machine, '_block_on_lease')
+    @patch.object(virtual_machine, 'get_vm_ovf_xml')
+    @patch.object(virtual_machine, 'download_vmdk')
+    @patch.object(virtual_machine, 'tarfile')
+    @patch.object(virtual_machine.os, 'makedirs')
+    @patch.object(virtual_machine.time, 'sleep')
+    @patch.object(virtual_machine, 'open')
+    @patch.object(virtual_machine.os, 'rename')
+    @patch.object(virtual_machine.os, 'listdir')
+    @patch.object(virtual_machine.shutil, 'rmtree')
+    def test_make_ova_provide_name_extension(self, fake_rmtree, fake_listdir, fake_rename, fake_open,
+        fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
+        fake_block_on_lease, fake_power):
+        """``make_ova`` - Appends '.ova' extension to a VM name if needed"""
+        fake_vcenter = MagicMock()
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        fake_log = MagicMock()
+
+        output = virtual_machine.make_ova(fake_vcenter, fake_vm, '/save/ova/here', fake_log, ova_name='vm01')
+        expected = '/save/ova/here/vm01.ova'
+
+        self.assertEqual(output, expected)
+
 
 if __name__ == '__main__':
     unittest.main()
