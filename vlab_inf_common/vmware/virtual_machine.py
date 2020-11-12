@@ -864,7 +864,7 @@ def _block_on_lease(lease):
         raise RuntimeError("Lease never became ready")
 
 
-def make_ova(vcenter, the_vm, template_dir, log):
+def make_ova(vcenter, the_vm, template_dir, log, ova_name=''):
     """Export a virtual machine into an OVA. The returned string is the location
     of the new OVA file.
 
@@ -881,6 +881,9 @@ def make_ova(vcenter, the_vm, template_dir, log):
 
     :param log: A message for writing progress/debug messages.
     :type log: logging.Logger
+
+    :param ova_name: Optionally define the name for the OVA. Defaults to the name of the VM.
+    :type ova_name: String
     """
     ova_location = ''
     power(the_vm, 'off')
@@ -898,7 +901,11 @@ def make_ova(vcenter, the_vm, template_dir, log):
     with open(ovf_xml_file, 'w') as the_file:
         the_file.write(vm_ovf_xml)
     # Convert to OVA
-    ova_name = '{}.ova'.format(the_vm.name)
+    if not ova_name:
+        ova_name = '{}.ova'.format(the_vm.name)
+    else:
+        if not ova_name.endswith('.ova'):
+            ova_name = '{}.ova'.format(ova_name)
     ova = tarfile.open(ova_name)
     for ova_file in os.listdir(save_location):
         ova.add(ova_file, arcname=os.path.basename(ova_file))
