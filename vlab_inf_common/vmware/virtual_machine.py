@@ -154,7 +154,7 @@ def set_meta(the_vm, meta_data):
     """
     expected = {'component', 'created', 'version', 'generation', 'configured'}
     provided = set(meta_data.keys())
-    if not expected == provided:
+    if not expected.issubset(provided):
         error = "Invalid meta data schema. Supplied: {}, Required: {}".format(provided, expected)
         raise ValueError(error)
     spec = vim.vm.ConfigSpec()
@@ -755,7 +755,7 @@ def download_vmdk(save_location, http_cookies, device, log):
     :type log: logging.Logger
     """
     vmdk_obj = []
-    if not (device.disk and device.taretId):
+    if not (device.disk and device.targetId):
         log.error("Device is not a VMDK: %s", device.url)
     else:
         vmdk_file = os.path.join(save_location, device.targetId)
@@ -891,26 +891,28 @@ def make_ova(vcenter, the_vm, template_dir, log, ova_name=''):
     _block_on_lease(lease)
     with ProgressChimer(lease, log):
         save_location = os.path.join(template_dir, the_vm.name)
-        os.makedirs(save_location, exists_ok=True)
+        os.makedirs(save_location, exist_ok=True)
         device_ovfs = []
         for device in lease.info.deviceUrl:
             device_ovf = download_vmdk(save_location, vcenter.cookie(), device, log)
             device_ovfs.extend(device_ovf)
     vm_ovf_xml = get_vm_ovf_xml(the_vm, device_ovfs, vcenter)
-    ovf_xml_file = os.path.join(save_location, the_vm.name, '.ovf')
+    ovf_xml_file = os.path.join(save_location, '{}.ovf'.format(the_vm.name))
     with open(ovf_xml_file, 'w') as the_file:
         the_file.write(vm_ovf_xml)
     # Convert to OVA
     if not ova_name:
         ova_name = '{}.ova'.format(the_vm.name)
-    else:
-        if not ova_name.endswith('.ova'):
-            ova_name = '{}.ova'.format(ova_name)
-    ova = tarfile.open(ova_name)
+    elif not ova_name.endswith('.ova'):
+        ova_name = '{}.ova'.format(ova_name)
+    ova_path = os.path.join(save_location, ova_name)
+    ova = tarfile.open(ova_path, mode='w')
     for ova_file in os.listdir(save_location):
-        ova.add(ova_file, arcname=os.path.basename(ova_file))
+        ova_file_path = os.path.join(save_location, ova_file)
+        ova.add(ova_file_path, arcname=ova_file)
     ova.close()
+    # Move the OVA from the VM specific subdirectory into the main template directory
     ova_location = os.path.join(template_dir, ova_name)
-    os.rename(ova_name, ova_location)
+    os.rename(ova_file_path, ova_location)
     shutil.rmtree(save_location)
     return ova_location
