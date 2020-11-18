@@ -74,3 +74,4 @@ man/
 site-packages/
 lib-python/
 lib_pypy/
+pyvenv.cfg

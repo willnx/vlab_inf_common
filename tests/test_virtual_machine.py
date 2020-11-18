@@ -1011,6 +1011,7 @@ class TestVMExportFunctions(unittest.TestCase):
         fake_sleep, fake_makedirs, fake_tarfile, fake_downlaod_vmdk, fake_get_vm_ovf_xml,
         fake_block_on_lease, fake_power):
         """``make_ova`` - Returns the location of the new OVA file"""
+        fake_listdir.return_value = ['vm01.ova']
         fake_vcenter = MagicMock()
         fake_vm = MagicMock()
         fake_vm.name = 'myVM'
@@ -1036,6 +1037,7 @@ class TestVMExportFunctions(unittest.TestCase):
         fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
         fake_block_on_lease, fake_power):
         """``make_ova`` - Downloads all the VMDKs of a virtual machine"""
+        fake_listdir.return_value = ['vm01.ova']
         fake_vcenter = MagicMock()
         fake_vm = MagicMock()
         fake_vm.name = 'myVM'
@@ -1090,6 +1092,7 @@ class TestVMExportFunctions(unittest.TestCase):
         fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
         fake_block_on_lease, fake_power):
         """``make_ova`` - Powers off the VM to create the export"""
+        fake_listdir.return_value = ['vm01.ova']
         fake_vcenter = MagicMock()
         fake_vm = MagicMock()
         fake_vm.name = 'myVM'
@@ -1116,6 +1119,7 @@ class TestVMExportFunctions(unittest.TestCase):
         fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
         fake_block_on_lease, fake_power):
         """``make_ova`` - Allows the caller to define the name of the OVA file."""
+        fake_listdir.return_value = ['vm01.ova']
         fake_vcenter = MagicMock()
         fake_vm = MagicMock()
         fake_vm.name = 'myVM'
@@ -1141,6 +1145,7 @@ class TestVMExportFunctions(unittest.TestCase):
         fake_sleep, fake_makedirs, fake_tarfile, fake_download_vmdk, fake_get_vm_ovf_xml,
         fake_block_on_lease, fake_power):
         """``make_ova`` - Appends '.ova' extension to a VM name if needed"""
+        fake_listdir.return_value = ['vm01.ova']
         fake_vcenter = MagicMock()
         fake_vm = MagicMock()
         fake_vm.name = 'myVM'
