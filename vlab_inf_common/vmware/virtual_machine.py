@@ -913,6 +913,6 @@ def make_ova(vcenter, the_vm, template_dir, log, ova_name=''):
     ova.close()
     # Move the OVA from the VM specific subdirectory into the main template directory
     ova_location = os.path.join(template_dir, ova_name)
-    os.rename(ova_file_path, ova_location)
+    os.rename(ova_path, ova_location)
     shutil.rmtree(save_location)
     return ova_location
