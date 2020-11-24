@@ -208,6 +208,7 @@ class FileHandle(object):
 
         self.st_size = os.stat(filename).st_size
         self.offset = 0
+        self._last_prog = 0
 
     def __del__(self):
         self.close()
@@ -236,9 +237,17 @@ class FileHandle(object):
         result = self.fh.read(amount)
         return result
 
-    # A slightly more accurate percentage
     def progress(self):
-        return int(100.0 * self.offset / self.st_size)
+        prog = int(100.0 * self.offset / self.st_size)
+        # I have no clue why, but sometimes the above math goes bad. Somehow
+        # self.offset goes from the end of the file, back to the start. Maybe
+        # a re-transmission of the file content? ¯\_(ツ)_/¯
+        # Regardless, when this happens the VM creation fails. VMware doesn't
+        # like you to report that less of the file has suddenly been uploaded.
+        # That's why there's this hacky workaround.
+        if prog > self._last_prog:
+            self._last_prog = prog
+        return self._last_prog
 
 
 class WebHandle(object):
