@@ -803,17 +803,6 @@ class TestConfigStaticIP(unittest.TestCase):
                                             fake_file_size,
                                             fake_file_attributes)
 
-
-
-
-
-
-
-
-
-
-
-
     @patch.object(virtual_machine, 'consume_task')
     def test_add_vmdk(self, fake_consume_task):
         """``add_vmdk`` Blocks on adding an extra VMDK to the DataIQ machine"""
@@ -862,8 +851,6 @@ class TestConfigStaticIP(unittest.TestCase):
         thin_provision = fake_the_vm.ReconfigVM_Task.call_args[1]['spec'].deviceChange[0].device.backing.thinProvisioned
 
         self.assertTrue(thin_provision)
-
-
 
 
 class TestVMExportFunctions(unittest.TestCase):
