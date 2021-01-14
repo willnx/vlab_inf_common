@@ -916,3 +916,45 @@ def make_ova(vcenter, the_vm, template_dir, log, ova_name=''):
     os.rename(ova_path, ova_location)
     shutil.rmtree(save_location)
     return ova_location
+
+
+def add_vmdk(the_vm, disk_size):
+    """Add a new VMDK to an existing Virtual Machine.
+
+    :Returns: None
+
+    :Rasies: RuntimeError
+
+    :param the_vm: The new DataIQ machine
+    :type the_vm: vim.VirtualMachine
+
+    :param disk_size: The number of GB to make the disk
+    :type disk_size: Integer
+    """
+    spec = vim.vm.ConfigSpec()
+    unit_number = 0
+    for dev in the_vm.config.hardware.device:
+        if hasattr(dev.backing, 'fileName'):
+            unit_number = int(dev.unitNumber) + 1
+            # unitNumber 7 is reserved for the SCSI controller
+            if unit_number == 7:
+                unit_number += 1
+            if unit_number >= 16:
+                raise RuntimeError('VMs cannot have more than 16 VMDKs')
+    if unit_number == 0:
+        raise RuntimeError('Unable to find any VMDKs for VM')
+
+    dev_changes = []
+    disk_spec = vim.vm.device.VirtualDeviceSpec()
+    disk_spec.fileOperation = "create"
+    disk_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+    disk_spec.device = vim.vm.device.VirtualDisk()
+    disk_spec.device.backing = vim.vm.device.VirtualDisk.FlatVer2BackingInfo()
+    disk_spec.device.backing.thinProvisioned = True
+    disk_spec.device.backing.diskMode = 'persistent'
+    disk_spec.device.unitNumber = unit_number
+    disk_spec.device.capacityInKB = int(disk_size) * 1024 * 1024
+    disk_spec.device.controllerKey = 1000
+    dev_changes.append(disk_spec)
+    spec.deviceChange = dev_changes
+    consume_task(the_vm.ReconfigVM_Task(spec=spec))
