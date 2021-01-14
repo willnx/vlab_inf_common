@@ -803,6 +803,69 @@ class TestConfigStaticIP(unittest.TestCase):
                                             fake_file_size,
                                             fake_file_attributes)
 
+
+
+
+
+
+
+
+
+
+
+
+    @patch.object(virtual_machine, 'consume_task')
+    def test_add_vmdk(self, fake_consume_task):
+        """``add_vmdk`` Blocks on adding an extra VMDK to the DataIQ machine"""
+        fake_dev = MagicMock()
+        fake_the_vm = MagicMock()
+        fake_the_vm.config.hardware.device = [fake_dev]
+        disk_size = 1
+
+        virtual_machine.add_vmdk(fake_the_vm, disk_size)
+
+        self.assertTrue(fake_consume_task.called)
+
+    @patch.object(virtual_machine, 'consume_task')
+    def test_add_vmdk_too_many_vmdks(self, fake_consume_task):
+        """``add_vmdk`` Raises RuntimeError if there are 16 or more VMDKs"""
+        fake_dev = MagicMock()
+        fake_dev.unitNumber = 15
+        fake_the_vm = MagicMock()
+        fake_the_vm.config.hardware.device = [fake_dev]
+        disk_size = 1
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine.add_vmdk(fake_the_vm, disk_size)
+
+    @patch.object(virtual_machine, 'consume_task')
+    def test_add_vmdk_no_vmdks(self, fake_consume_task):
+        """``add_vmdk`` Raises RuntimeError if there zero VMDKs"""
+        fake_the_vm = MagicMock()
+        fake_the_vm.config.hardware.device = []
+        disk_size = 1
+
+        with self.assertRaises(RuntimeError):
+            virtual_machine.add_vmdk(fake_the_vm, disk_size)
+
+    @patch.object(virtual_machine, 'consume_task')
+    def test_add_vmdk_thin(self, fake_consume_task):
+        """``add_vmdk`` Creates a thin-provisioned VMDK"""
+        fake_dev = MagicMock()
+        fake_dev.unitNumber = 6
+        fake_the_vm = MagicMock()
+        fake_the_vm.config.hardware.device = [fake_dev]
+        disk_size = 1
+
+        virtual_machine.add_vmdk(fake_the_vm, disk_size)
+
+        thin_provision = fake_the_vm.ReconfigVM_Task.call_args[1]['spec'].deviceChange[0].device.backing.thinProvisioned
+
+        self.assertTrue(thin_provision)
+
+
+
+
 class TestVMExportFunctions(unittest.TestCase):
     """A suite of test cases for functions used to create an OVA from an virtual machine"""
 
