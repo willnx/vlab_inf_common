@@ -916,3 +916,46 @@ def make_ova(vcenter, the_vm, template_dir, log, ova_name=''):
     os.rename(ova_file_path, ova_location)
     shutil.rmtree(save_location)
     return ova_location
+
+
+def configure_network(the_vm, ip_config):
+    """Set a static IP and related network settings for a Linux VM with VMware Tools installed.
+
+    The ``ip_config`` dictionary MUST have the following keys:
+        - static-ip
+        - netmask
+        - default-gateway
+        - dns
+        - domain
+
+    :Returns: None
+
+    :param the_vm: The pyVmomi Virtual machine object
+    :type the_vm: vim.VirtualMachine
+
+    :param ip_config: The dictionary containing the static network information.
+    :type ip_config: Dictionary
+
+    """
+    # Boilerplate...
+    adaptermap = vim.vm.customization.AdapterMapping()
+    globalip = vim.vm.customization.GlobalIPSettings()
+    adaptermap.adapter = vim.vm.customization.IPSettings()
+    # Configure IP & DNS
+    adaptermap.adapter.ip = vim.vm.customization.FixedIp()
+    adaptermap.adapter.ip.ipAddress = ip_config['static-ip']
+    adaptermap.adapter.subnetMask = ip_config['netmask']
+    adaptermap.adapter.gateway = ip_config['default-gateway']
+    globalip.dnsServerList = ip_config['dns']
+    adaptermap.adapter.dnsDomain = ip_config['domain']
+    ident = vim.vm.customization.LinuxPrep()
+    ident.domain = ip_config['domain']
+    ident.hostName = vim.vm.customization.FixedName()
+    ident.hostName.name = the_vm.name
+    # Create the configuration spec
+    spec = vim.vm.customization.Specification()
+    spec.nicSettingMap = [adaptermap]
+    spec.globalIPSettings = globalip
+    spec.identity = ident
+    task = the_vm.Customize(spec=spec)
+    consume_task(task)

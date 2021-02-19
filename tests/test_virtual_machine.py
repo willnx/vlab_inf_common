@@ -1156,6 +1156,23 @@ class TestVMExportFunctions(unittest.TestCase):
 
         self.assertEqual(output, expected)
 
+    @patch.object(virtual_machine, 'consume_task')
+    def test_configure_network(self, fake_consume_task):
+        """``configure_network`` customizes the VM."""
+        fake_vm = MagicMock()
+        fake_vm.name = 'myVM'
+        ip_config = {
+            'static-ip' : '1.2.3.4',
+            'netmask' : '255.255.255.0',
+            'default-gateway' : '1.2.3.1',
+            'dns' : ['1.2.3.2', '1.2.3.3'],
+            'domain' : 'foo.local'
+        }
+
+        virtual_machine.configure_network(fake_vm, ip_config)
+
+        self.assertTrue(fake_vm.Customize.called)
+
 
 if __name__ == '__main__':
     unittest.main()
