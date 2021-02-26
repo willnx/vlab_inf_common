@@ -1001,3 +1001,21 @@ def configure_network(the_vm, ip_config):
     spec.identity = ident
     task = the_vm.Customize(spec=spec)
     consume_task(task)
+
+
+def block_on_boot(the_vm):
+    """Wait until VMware Tools is ready on a machine.
+
+    :Returns: None
+
+    :param the_vm: The pyVmomi Virtual machine object
+    :type the_vm: vim.VirtualMachine
+    """
+    ready = the_vm.guest.toolsStatus == vim.vm.GuestInfo.ToolsStatus.toolsOk
+    while not ready:
+        time.sleep(1)
+        ready = the_vm.guest.toolsStatus == vim.vm.GuestInfo.ToolsStatus.toolsOk
+    # Fun fact - it's still booting. If we don't let it fully boot, then the
+    # for whatever reason the network changes will be tossed out.
+    # So, let's just do a dumb long sleep and hope :(
+    time.sleep(300)
