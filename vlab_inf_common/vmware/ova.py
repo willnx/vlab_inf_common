@@ -116,6 +116,7 @@ class Ova(object):
             self._chime_progress(lease)
             for file_item in self._spec.fileItem:
                 self._upload_disk(file_item)
+            self._lease.Progress(100.0)
             self._lease.Complete()
         except vmodl.MethodFault as doh:
             lease.Abort(doh)
