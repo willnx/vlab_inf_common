@@ -1223,6 +1223,16 @@ class TestVMExportFunctions(unittest.TestCase):
 
         self.assertTrue(fake_vm.Customize.called)
 
+    @patch.object(virtual_machine.time, 'sleep')
+    def test_block_on_boot(self, fake_sleep):
+        """``block_on_boot`` waits for VMware Tools to be ready"""
+        fake_vm = MagicMock()
+        fake_vm.guest.toolsStatus = virtual_machine.vim.GuestInfo.ToolsStatus.toolsOk
+
+        virtual_machine.block_on_boot(fake_vm)
+
+        self.assertEqual(fake_sleep.call_count, 1)
+
 
 if __name__ == '__main__':
     unittest.main()
