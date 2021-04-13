@@ -239,7 +239,8 @@ class FileHandle(object):
 
     # A slightly more accurate percentage
     def progress(self):
-        return int(100.0 * self.offset / self.st_size)
+        prog = int(100.0 * self.offset / self.st_size)
+        return min(prog, 100.0)
 
 
 class WebHandle(object):
@@ -299,4 +300,5 @@ class WebHandle(object):
 
     # A slightly more accurate percentage
     def progress(self):
-        return int(100.0 * self.offset / self.st_size)
+        prog = int(100.0 * self.offset / self.st_size)
+        return min(prog, 100.0)
