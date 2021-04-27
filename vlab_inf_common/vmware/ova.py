@@ -11,8 +11,11 @@ from threading import Timer
 from urllib.request import urlopen, Request
 
 from pyVmomi import vmodl
+from vlab_api_common import get_logger
 
 from vlab_inf_common.ssl_context import get_context
+
+log = get_logger(__name__)
 
 
 class Ova(object):
@@ -188,6 +191,9 @@ class Ova(object):
         except vmodl.fault.ManagedObjectNotFound:
             # race between upload completing, and Timer chiming
             pass
+        except vmodl.fault.InvalidArgument as doh:
+            log.exception(doh)
+            log.error("FINDME: %s", self._handle.progress())
         except Exception:
             # Don't start a new chimer, write the traceback to the console,
             # and kill the deploy. Might take a few moments for the deploy
