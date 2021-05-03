@@ -2,6 +2,7 @@
 """
 Common functions for interacting with Virtual Machines in VMware
 """
+import re
 import ssl
 import time
 import shutil
@@ -352,6 +353,11 @@ def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger, p
     """
     if not isinstance(network_map, list):
         raise ValueError('Param network_map must be of type list, found {}'.format(type(network_map)))
+
+    hostname_regex = r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$'
+    if not re.match(hostname_regex, machine_name):
+        error = 'Invalid name for machine. Names can only contain characters a-z, A-Z, 0-9, periods (".") and dashes ("-"). Supplied: {}'.format(machine_name)
+        raise ValueError(error)
 
     folder = vcenter.get_by_name(name=username, vimtype=vim.Folder)
     resource_pool = vcenter.resource_pools[const.INF_VCENTER_RESORUCE_POOL]
