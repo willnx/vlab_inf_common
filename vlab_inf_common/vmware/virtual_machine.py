@@ -356,7 +356,7 @@ def deploy_from_ova(vcenter, ova, network_map, username, machine_name, logger, p
 
     hostname_regex = r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$'
     if not re.match(hostname_regex, machine_name):
-        error = 'Invalid name for machine. Names can only contain characters a-z, A-Z, 0-9, periods (".") and dashes ("-"). Supplied: {}'.format(machine_name)
+        error = 'Invalid machine name. Names can only contain characters a-z, A-Z, 0-9, periods (".") and dashes ("-"). Supplied: {}'.format(machine_name)
         raise ValueError(error)
 
     folder = vcenter.get_by_name(name=username, vimtype=vim.Folder)
