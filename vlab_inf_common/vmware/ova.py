@@ -193,7 +193,7 @@ class Ova(object):
             pass
         except vmodl.fault.InvalidArgument as doh:
             log.exception(doh)
-            log.error("FINDME: %s", self._handle.progress())
+            log.error("FINDME: %s, state: %s", self._handle.progress(), lease.state)
         except Exception:
             # Don't start a new chimer, write the traceback to the console,
             # and kill the deploy. Might take a few moments for the deploy
